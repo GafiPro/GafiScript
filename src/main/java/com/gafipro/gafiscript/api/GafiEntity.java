@@ -98,7 +98,7 @@ public final class GafiEntity {
     }
 
     public GafiWorld world() {
-        if (!(handle.getWorld() instanceof ServerWorld world)) {
+        if (!(handle.getEntityWorld() instanceof ServerWorld world)) {
             throw new IllegalStateException(
                     "Entity is not currently in a server world."
             );
