@@ -144,7 +144,7 @@ public final class GafiGui {
     private GenericContainerScreenHandler createHandler(
             int syncId,
             PlayerInventory playerInventory,
-            ServerPlayerEntity player
+            PlayerEntity player
     ) {
         return new GenericContainerScreenHandler(
                 switch (rows) {
