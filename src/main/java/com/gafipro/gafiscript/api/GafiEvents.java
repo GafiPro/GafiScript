@@ -1,12 +1,13 @@
 package com.gafipro.gafiscript.api;
 
+import com.gafipro.gafiscript.runtime.GafiScriptContext;
 import net.fabricmc.fabric.api.entity.event.v1.ServerPlayerEvents;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
 import net.fabricmc.fabric.api.event.player.UseBlockCallback;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayConnectionEvents;
 import net.fabricmc.fabric.api.event.player.PlayerBlockBreakEvents;
-import net.minecraft.util.ActionResult;
 import net.minecraft.server.network.ServerPlayerEntity;
+import net.minecraft.util.ActionResult;
 
 import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
@@ -15,97 +16,286 @@ import java.util.function.Consumer;
 public final class GafiEvents {
     public static final GafiEvents INSTANCE = new GafiEvents();
 
-    private final List<Consumer<GafiPlayer>> joinListeners = new CopyOnWriteArrayList<>();
-    private final List<Consumer<GafiPlayer>> leaveListeners = new CopyOnWriteArrayList<>();
-    private final List<Consumer<GafiPlayer>> deathListeners = new CopyOnWriteArrayList<>();
-    private final List<Consumer<GafiBlockBreakEvent>> breakListeners = new CopyOnWriteArrayList<>();
-    private final List<Consumer<GafiBlockUseEvent>> useListeners = new CopyOnWriteArrayList<>();
-    private final List<Consumer<GafiServerTickEvent>> tickListeners = new CopyOnWriteArrayList<>();
+    private final List<Listener<GafiPlayer>> joinListeners =
+            new CopyOnWriteArrayList<>();
+    private final List<Listener<GafiPlayer>> leaveListeners =
+            new CopyOnWriteArrayList<>();
+    private final List<Listener<GafiPlayer>> deathListeners =
+            new CopyOnWriteArrayList<>();
+    private final List<Listener<GafiBlockBreakEvent>> breakListeners =
+            new CopyOnWriteArrayList<>();
+    private final List<Listener<GafiBlockUseEvent>> useListeners =
+            new CopyOnWriteArrayList<>();
+    private final List<Listener<GafiServerTickEvent>> tickListeners =
+            new CopyOnWriteArrayList<>();
+
     private boolean registered;
 
     private GafiEvents() {}
 
     public static void register() {
         if (INSTANCE.registered) return;
+
         INSTANCE.registered = true;
 
-        ServerPlayConnectionEvents.JOIN.register((handler, sender, server) ->
-                INSTANCE.joinListeners.forEach(listener -> safe(() -> listener.accept(new GafiPlayer(handler.getPlayer())))));
+        ServerPlayConnectionEvents.JOIN.register(
+                (handler, sender, server) ->
+                        INSTANCE.joinListeners.forEach(
+                                listener ->
+                                        INSTANCE.safe(
+                                                listener.ownerScript(),
+                                                () -> listener.consumer()
+                                                        .accept(
+                                                                new GafiPlayer(
+                                                                        handler.getPlayer()
+                                                                )
+                                                        )
+                                        )
+                        )
+        );
 
-        ServerPlayConnectionEvents.DISCONNECT.register((handler, server) ->
-                INSTANCE.leaveListeners.forEach(listener -> safe(() -> listener.accept(new GafiPlayer(handler.getPlayer())))));
+        ServerPlayConnectionEvents.DISCONNECT.register(
+                (handler, server) ->
+                        INSTANCE.leaveListeners.forEach(
+                                listener ->
+                                        INSTANCE.safe(
+                                                listener.ownerScript(),
+                                                () -> listener.consumer()
+                                                        .accept(
+                                                                new GafiPlayer(
+                                                                        handler.getPlayer()
+                                                                )
+                                                        )
+                                        )
+                        )
+        );
 
-        ServerPlayerEvents.AFTER_RESPAWN.register((oldPlayer, newPlayer, alive) -> {
-            if (!alive) {
-                INSTANCE.deathListeners.forEach(listener -> safe(() -> listener.accept(new GafiPlayer(oldPlayer))));
-            }
-        });
+        ServerPlayerEvents.AFTER_RESPAWN.register(
+                (oldPlayer, newPlayer, alive) -> {
+                    if (!alive) {
+                        INSTANCE.deathListeners.forEach(
+                                listener ->
+                                        INSTANCE.safe(
+                                                listener.ownerScript(),
+                                                () -> listener.consumer()
+                                                        .accept(
+                                                                new GafiPlayer(
+                                                                        oldPlayer
+                                                                )
+                                                        )
+                                        )
+                        );
+                    }
+                }
+        );
 
-        PlayerBlockBreakEvents.AFTER.register((world, player, pos, state, entity) -> {
-            if (!(player instanceof ServerPlayerEntity serverPlayer)) {
-                return;
-            }
+        PlayerBlockBreakEvents.AFTER.register(
+                (world, player, pos, state, entity) -> {
+                    if (!(player instanceof ServerPlayerEntity serverPlayer)) {
+                        return;
+                    }
 
-            GafiBlockBreakEvent event = new GafiBlockBreakEvent(
-                    new GafiPlayer(serverPlayer),
-                    new GafiPosition(pos.getX(), pos.getY(), pos.getZ()),
-                    state
-            );
+                    GafiBlockBreakEvent event =
+                            new GafiBlockBreakEvent(
+                                    new GafiPlayer(serverPlayer),
+                                    new GafiPosition(
+                                            pos.getX(),
+                                            pos.getY(),
+                                            pos.getZ()
+                                    ),
+                                    state
+                            );
 
-            INSTANCE.breakListeners.forEach(listener -> safe(() -> listener.accept(event)));
-        });
+                    INSTANCE.breakListeners.forEach(
+                            listener ->
+                                    INSTANCE.safe(
+                                            listener.ownerScript(),
+                                            () -> listener.consumer()
+                                                    .accept(event)
+                                    )
+                    );
+                }
+        );
 
-        UseBlockCallback.EVENT.register((player, world, hand, hitResult) -> {
-            if (world.isClient() || !(player instanceof ServerPlayerEntity serverPlayer)) {
-                return ActionResult.PASS;
-            }
+        UseBlockCallback.EVENT.register(
+                (player, world, hand, hitResult) -> {
+                    if (world.isClient() ||
+                            !(player instanceof ServerPlayerEntity serverPlayer)) {
+                        return ActionResult.PASS;
+                    }
 
-            GafiBlockUseEvent event = new GafiBlockUseEvent(
-                    new GafiPlayer(serverPlayer),
-                    new GafiPosition(
-                            hitResult.getBlockPos().getX(),
-                            hitResult.getBlockPos().getY(),
-                            hitResult.getBlockPos().getZ()
-                    )
-            );
+                    GafiBlockUseEvent event =
+                            new GafiBlockUseEvent(
+                                    new GafiPlayer(serverPlayer),
+                                    new GafiPosition(
+                                            hitResult.getBlockPos().getX(),
+                                            hitResult.getBlockPos().getY(),
+                                            hitResult.getBlockPos().getZ()
+                                    )
+                            );
 
-            INSTANCE.useListeners.forEach(listener -> safe(() -> listener.accept(event)));
-            return event.isCancelled() ? ActionResult.FAIL : ActionResult.PASS;
-        });
+                    INSTANCE.useListeners.forEach(
+                            listener ->
+                                    INSTANCE.safe(
+                                            listener.ownerScript(),
+                                            () -> listener.consumer()
+                                                    .accept(event)
+                                    )
+                    );
 
-        ServerTickEvents.END_SERVER_TICK.register(server ->
-                INSTANCE.tickListeners.forEach(listener -> safe(() -> listener.accept(new GafiServerTickEvent()))));
+                    return event.isCancelled()
+                            ? ActionResult.FAIL
+                            : ActionResult.PASS;
+                }
+        );
+
+        ServerTickEvents.END_SERVER_TICK.register(
+                server ->
+                        INSTANCE.tickListeners.forEach(
+                                listener ->
+                                        INSTANCE.safe(
+                                                listener.ownerScript(),
+                                                () -> listener.consumer()
+                                                        .accept(
+                                                                new GafiServerTickEvent()
+                                                        )
+                                        )
+                        )
+        );
     }
 
-    public void onPlayerJoin(Consumer<GafiPlayer> listener) {
-        joinListeners.add(listener);
+    public GafiEventHandle onPlayerJoin(
+            Consumer<GafiPlayer> listener
+    ) {
+        return add(joinListeners, listener);
     }
 
-    public void onPlayerLeave(Consumer<GafiPlayer> listener) {
-        leaveListeners.add(listener);
+    public GafiEventHandle onPlayerLeave(
+            Consumer<GafiPlayer> listener
+    ) {
+        return add(leaveListeners, listener);
     }
 
-    public void onPlayerDeath(Consumer<GafiPlayer> listener) {
-        deathListeners.add(listener);
+    public GafiEventHandle onPlayerDeath(
+            Consumer<GafiPlayer> listener
+    ) {
+        return add(deathListeners, listener);
     }
 
-    public void onBlockBreak(Consumer<GafiBlockBreakEvent> listener) {
-        breakListeners.add(listener);
+    public GafiEventHandle onBlockBreak(
+            Consumer<GafiBlockBreakEvent> listener
+    ) {
+        return add(breakListeners, listener);
     }
 
-    public void onBlockUse(Consumer<GafiBlockUseEvent> listener) {
-        useListeners.add(listener);
+    public GafiEventHandle onBlockUse(
+            Consumer<GafiBlockUseEvent> listener
+    ) {
+        return add(useListeners, listener);
     }
 
-    public void onTick(Consumer<GafiServerTickEvent> listener) {
-        tickListeners.add(listener);
+    public GafiEventHandle onTick(
+            Consumer<GafiServerTickEvent> listener
+    ) {
+        return add(tickListeners, listener);
     }
 
-    private static void safe(Runnable runnable) {
+    public void unregisterOwnedBy(String scriptName) {
+        unregisterOwnedBy(joinListeners, scriptName);
+        unregisterOwnedBy(leaveListeners, scriptName);
+        unregisterOwnedBy(deathListeners, scriptName);
+        unregisterOwnedBy(breakListeners, scriptName);
+        unregisterOwnedBy(useListeners, scriptName);
+        unregisterOwnedBy(tickListeners, scriptName);
+    }
+
+    private <T> GafiEventHandle add(
+            List<Listener<T>> listeners,
+            Consumer<T> consumer
+    ) {
+        if (consumer == null) {
+            throw new NullPointerException("listener");
+        }
+
+        Listener<T> listener =
+                new Listener<>(
+                        GafiScriptContext.currentScript(),
+                        consumer
+                );
+
+        listeners.add(listener);
+
+        return new GafiEventHandle(
+                listener.ownerScript(),
+                () -> listeners.remove(listener)
+        );
+    }
+
+    private <T> void unregisterOwnedBy(
+            List<Listener<T>> listeners,
+            String scriptName
+    ) {
+        if (scriptName == null) return;
+
+        listeners.removeIf(
+                listener -> {
+                    if (!scriptName.equals(listener.ownerScript())) {
+                        return false;
+                    }
+
+                    listener.unregister();
+                    return true;
+                }
+        );
+    }
+
+    private void safe(
+            String owner,
+            Runnable action
+    ) {
         try {
-            runnable.run();
+            if (owner == null) {
+                action.run();
+            } else {
+                GafiScriptContext.runAs(owner, action);
+            }
         } catch (Throwable throwable) {
-            com.gafipro.gafiscript.GafiScriptMod.LOGGER.error("GafiScript event listener failed", throwable);
+            com.gafipro.gafiscript.GafiScriptMod.LOGGER.error(
+                    "GafiScript event listener failed",
+                    throwable
+            );
+        }
+    }
+
+    private static final class Listener<T> {
+        private final String ownerScript;
+        private final Consumer<T> consumer;
+        private GafiEventHandle handle;
+
+        private Listener(
+                String ownerScript,
+                Consumer<T> consumer
+        ) {
+            this.ownerScript = ownerScript;
+            this.consumer = consumer;
+        }
+
+        String ownerScript() {
+            return ownerScript;
+        }
+
+        Consumer<T> consumer() {
+            return consumer;
+        }
+
+        void unregister() {
+            if (handle != null) {
+                handle.unregister();
+            }
+        }
+
+        void attach(GafiEventHandle handle) {
+            this.handle = handle;
         }
     }
 
@@ -114,16 +304,28 @@ public final class GafiEvents {
         private final GafiPosition position;
         private final net.minecraft.block.BlockState state;
 
-        public GafiBlockBreakEvent(GafiPlayer player, GafiPosition position, net.minecraft.block.BlockState state) {
+        public GafiBlockBreakEvent(
+                GafiPlayer player,
+                GafiPosition position,
+                net.minecraft.block.BlockState state
+        ) {
             this.player = player;
             this.position = position;
             this.state = state;
         }
 
-        public GafiPlayer player() { return player; }
-        public GafiPosition position() { return position; }
+        public GafiPlayer player() {
+            return player;
+        }
+
+        public GafiPosition position() {
+            return position;
+        }
+
         public String blockId() {
-            return net.minecraft.registry.Registries.BLOCK.getId(state.getBlock()).toString();
+            return net.minecraft.registry.Registries.BLOCK
+                    .getId(state.getBlock())
+                    .toString();
         }
     }
 
@@ -132,15 +334,29 @@ public final class GafiEvents {
         private final GafiPosition position;
         private boolean cancelled;
 
-        public GafiBlockUseEvent(GafiPlayer player, GafiPosition position) {
+        public GafiBlockUseEvent(
+                GafiPlayer player,
+                GafiPosition position
+        ) {
             this.player = player;
             this.position = position;
         }
 
-        public GafiPlayer player() { return player; }
-        public GafiPosition position() { return position; }
-        public boolean isCancelled() { return cancelled; }
-        public void cancel() { cancelled = true; }
+        public GafiPlayer player() {
+            return player;
+        }
+
+        public GafiPosition position() {
+            return position;
+        }
+
+        public boolean isCancelled() {
+            return cancelled;
+        }
+
+        public void cancel() {
+            cancelled = true;
+        }
     }
 
     public record GafiServerTickEvent() {}
