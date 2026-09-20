@@ -61,3 +61,16 @@ jar {
 tasks.named("remapJar") {
     dependsOn(tasks.named("jar"))
 }
+
+
+tasks.withType(Javadoc).configureEach {
+    options.encoding = "UTF-8"
+    options.addStringOption("Xdoclint:none", "-quiet")
+    failOnError = false
+}
+
+tasks.register("apiDocs") {
+    dependsOn(tasks.named("javadoc"))
+    group = "documentation"
+    description = "Generate GafiScript API Javadocs."
+}
