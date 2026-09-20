@@ -1,11 +1,10 @@
 import com.gafipro.gafiscript.api.GafiBossBar;
 import com.gafipro.gafiscript.api.GafiEventHandle;
 import com.gafipro.gafiscript.api.GafiPosition;
-import com.gafipro.gafiscript.api.GafiTask;
 
 import static com.gafipro.gafiscript.api.Gafi.*;
 
-public class BoatRaceComplete {
+public class BoatRace {
     private static final GafiPosition START_BUTTON =
             GafiPosition.of(-1461, 58, 590);
 
@@ -32,7 +31,6 @@ public class BoatRaceComplete {
     private static int raceNumber;
 
     private static GafiBossBar bossBar;
-    private static GafiTask ticker;
     private static GafiEventHandle buttonListener;
 
     public static void start() {
@@ -60,14 +58,13 @@ public class BoatRaceComplete {
                     beginRace();
                 });
 
-        ticker =
-                repeatTicks(
-                        1,
-                        BoatRaceComplete::tick
-                );
+        repeatTicks(
+                1,
+                BoatRace::tick
+        );
 
         broadcast(
-                "§7BoatRaceComplete loaded. " +
+                "§7BoatRace loaded. " +
                         "§ePress the configured start button."
         );
     }
@@ -213,7 +210,7 @@ public class BoatRaceComplete {
 
         scheduler().delaySeconds(
                 5,
-                BoatRaceComplete::reset
+                BoatRace::reset
         );
     }
 
