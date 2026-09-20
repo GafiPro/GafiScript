@@ -7,6 +7,8 @@ import net.minecraft.item.Items;
 import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.server.world.ServerWorld;
 import net.minecraft.text.Text;
+import java.util.Set;
+import net.minecraft.entity.PositionFlag;
 
 public final class GafiPlayer {
     private final ServerPlayerEntity handle;
@@ -28,7 +30,7 @@ public final class GafiPlayer {
     }
 
     public GafiWorld world() {
-        ServerWorld world = (ServerWorld) handle.getWorld();
+        ServerWorld world = handle.getCommandSource().getWorld();
         return new GafiWorld(world.getServer(), world);
     }
 
@@ -76,14 +78,16 @@ public final class GafiPlayer {
 
     public void teleport(GafiPosition position) {
         Gafi.runSync(() -> {
-            ServerWorld world = (ServerWorld) handle.getWorld();
+            ServerWorld world = handle.getCommandSource().getWorld();
             handle.teleport(
                     world,
                     position.x(),
                     position.y(),
                     position.z(),
+                    Set.<PositionFlag>of(),
                     handle.getYaw(),
-                    handle.getPitch()
+                    handle.getPitch(),
+                    false
             );
         });
     }
