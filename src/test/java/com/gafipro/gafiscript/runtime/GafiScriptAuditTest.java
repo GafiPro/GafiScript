@@ -215,11 +215,7 @@ class GafiScriptAuditTest {
                         List.of(output.toFile())
                 );
 
-                String classPath =
-                        System.getProperty(
-                                "java.class.path",
-                                ""
-                        );
+                String classPath = buildCompilerClassPath();
 
                 JavaCompiler.CompilationTask task =
                         compiler.getTask(
@@ -282,6 +278,48 @@ class GafiScriptAuditTest {
                 "A JDK compiler is required to run the GafiScript audit tests."
         );
         return compiler;
+    }
+
+    private static String buildCompilerClassPath() {
+        java.util.LinkedHashSet<String> entries =
+                new java.util.LinkedHashSet<>();
+
+        String systemClassPath =
+                System.getProperty("java.class.path", "");
+
+        if (!systemClassPath.isBlank()) {
+            for (String entry :
+                    systemClassPath.split(java.io.File.pathSeparator)) {
+                if (!entry.isBlank()) {
+                    entries.add(entry);
+                }
+            }
+        }
+
+        for (Class<?> type : List.of(
+                GafiScriptAuditTest.class,
+                com.gafipro.gafiscript.api.Gafi.class,
+                net.minecraft.server.MinecraftServer.class,
+                net.fabricmc.loader.api.FabricLoader.class
+        )) {
+            try {
+                URL location =
+                        type.getProtectionDomain()
+                                .getCodeSource()
+                                .getLocation();
+                entries.add(
+                        Path.of(location.toURI())
+                                .toAbsolutePath()
+                                .toString()
+                );
+            } catch (Exception ignored) {
+            }
+        }
+
+        return String.join(
+                java.io.File.pathSeparator,
+                entries
+        );
     }
 
     private static String formatDiagnostics(
