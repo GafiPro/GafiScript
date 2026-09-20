@@ -93,6 +93,24 @@ public final class Gafi {
         return new GafiDatabase(server(), namespace);
     }
 
+    public static GafiEntity entity(java.util.UUID uuid) {
+        for (var world : server().getWorlds()) {
+            var entity = world.getEntity(uuid);
+            if (entity != null) {
+                return new GafiEntity(entity);
+            }
+        }
+        return null;
+    }
+
+    public static GafiBossBar bossBar(
+            String name,
+            net.minecraft.entity.boss.ServerBossBar.Color color,
+            net.minecraft.entity.boss.ServerBossBar.Style style
+    ) {
+        return new GafiBossBar(name, color, style);
+    }
+
     public static GafiTask delayTicks(long ticks, Runnable action) {
         return scheduler().delayTicks(ticks, action);
     }
