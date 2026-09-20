@@ -304,6 +304,36 @@ public final class GafiScriptScreen extends Screen {
     }
 
     @Override
+    public boolean mouseDragged(
+            Click click,
+            double offsetX,
+            double offsetY
+    ) {
+        if (click.buttonInfo().button() ==
+                org.lwjgl.glfw.GLFW.GLFW_MOUSE_BUTTON_1 &&
+                click.x() >= 10 &&
+                click.y() >= 34 &&
+                click.y() < height - 30) {
+            editor.mouseDragged(
+                    click.x() + offsetX,
+                    click.y() + offsetY,
+                    click.buttonInfo().button()
+            );
+            return true;
+        }
+
+        return super.mouseDragged(click, offsetX, offsetY);
+    }
+
+    @Override
+    public boolean mouseReleased(Click click) {
+        boolean editorHandled = editor.mouseReleased(
+                click.buttonInfo().button()
+        );
+        return editorHandled || super.mouseReleased(click);
+    }
+
+    @Override
     public void render(
             DrawContext context,
             int mouseX,
