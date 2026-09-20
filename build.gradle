@@ -52,6 +52,14 @@ java {
 tasks.test {
     useJUnitPlatform()
 
+    testLogging {
+        events "failed"
+        showExceptions = true
+        showCauses = true
+        exceptionFormat = "full"
+        showStandardStreams = true
+    }
+
     doFirst {
         def classpathEntries =
                 new LinkedHashSet<String>()
