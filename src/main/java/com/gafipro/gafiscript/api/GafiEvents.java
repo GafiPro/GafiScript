@@ -273,12 +273,15 @@ public final class GafiEvents {
                         consumer
                 );
 
-        listeners.add(listener);
+        GafiEventHandle handle =
+                new GafiEventHandle(
+                        listener.ownerScript(),
+                        () -> listeners.remove(listener)
+                );
 
-        return new GafiEventHandle(
-                listener.ownerScript(),
-                () -> listeners.remove(listener)
-        );
+        listener.attach(handle);
+        listeners.add(listener);
+        return handle;
     }
 
     private <T> void unregisterOwnedBy(
