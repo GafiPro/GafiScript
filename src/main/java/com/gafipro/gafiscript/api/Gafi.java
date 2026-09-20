@@ -15,6 +15,8 @@ public final class Gafi {
     private static final GafiRandom RANDOM = new GafiRandom();
     private static final GafiCommands COMMANDS = new GafiCommands();
     private static final GafiProfiler PROFILER = new GafiProfiler();
+    private static final GafiCustomEvents CUSTOM_EVENTS = new GafiCustomEvents();
+    private static final GafiWatchdog WATCHDOG = new GafiWatchdog();
 
     private Gafi() {}
 
@@ -61,6 +63,14 @@ public final class Gafi {
 
     public static GafiProfiler profiler() {
         return PROFILER;
+    }
+
+    public static GafiCustomEvents customEvents() {
+        return CUSTOM_EVENTS;
+    }
+
+    public static GafiWatchdog watchdog() {
+        return WATCHDOG;
     }
 
     public static GafiGuiFactory gui() {
