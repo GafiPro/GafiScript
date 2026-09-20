@@ -5,6 +5,7 @@ import net.minecraft.entity.player.PlayerInventory;
 import net.minecraft.item.ItemStack;
 import net.minecraft.item.Items;
 import net.minecraft.server.network.ServerPlayerEntity;
+import net.minecraft.server.world.ServerWorld;
 import net.minecraft.text.Text;
 
 public final class GafiPlayer {
@@ -27,7 +28,8 @@ public final class GafiPlayer {
     }
 
     public GafiWorld world() {
-        return new GafiWorld(handle.getServer(), handle.getServerWorld());
+        ServerWorld world = (ServerWorld) handle.getWorld();
+        return new GafiWorld(world.getServer(), world);
     }
 
     public double health() {
@@ -73,14 +75,17 @@ public final class GafiPlayer {
     }
 
     public void teleport(GafiPosition position) {
-        Gafi.runSync(() -> handle.teleport(
-                handle.getServerWorld(),
-                position.x(),
-                position.y(),
-                position.z(),
-                handle.getYaw(),
-                handle.getPitch()
-        ));
+        Gafi.runSync(() -> {
+            ServerWorld world = (ServerWorld) handle.getWorld();
+            handle.teleport(
+                    world,
+                    position.x(),
+                    position.y(),
+                    position.z(),
+                    handle.getYaw(),
+                    handle.getPitch()
+            );
+        });
     }
 
     public void giveItem(String itemId, int amount) {
@@ -126,14 +131,14 @@ public final class GafiPlayer {
 
     public void addEffect(String effectId, int seconds, int amplifier) {
         Gafi.runSync(() -> {
-            var effect = net.minecraft.registry.Registries.STATUS_EFFECT.get(
-                    net.minecraft.util.Identifier.of(effectId)
-            );
+            var entry = net.minecraft.registry.Registries.STATUS_EFFECT
+                    .getEntry(net.minecraft.util.Identifier.of(effectId))
+                    .orElse(null);
 
-            if (effect != null) {
+            if (entry != null) {
                 handle.addStatusEffect(
                         new StatusEffectInstance(
-                                effect,
+                                entry,
                                 Math.max(1, seconds * 20),
                                 Math.max(0, amplifier)
                         )
