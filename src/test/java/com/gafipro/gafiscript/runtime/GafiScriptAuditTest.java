@@ -331,7 +331,9 @@ class GafiScriptAuditTest {
                 GafiScriptAuditTest.class,
                 com.gafipro.gafiscript.api.Gafi.class,
                 net.minecraft.server.MinecraftServer.class,
-                net.fabricmc.loader.api.FabricLoader.class
+                net.fabricmc.loader.api.FabricLoader.class,
+                net.fabricmc.fabric.api.event.player.UseBlockCallback.class,
+                net.fabricmc.fabric.api.entity.event.v1.ServerPlayerEvents.class
         )) {
             try {
                 URL location =
@@ -344,6 +346,28 @@ class GafiScriptAuditTest {
                                 .toString()
                 );
             } catch (Exception ignored) {
+            }
+        }
+
+        // Gradle's test worker classloader can contain URLs that are not
+        // represented by java.class.path. Include every URL exposed by the
+        // test classloader hierarchy as an additional fallback.
+        for (ClassLoader loader = GafiScriptAuditTest.class.getClassLoader();
+             loader != null;
+             loader = loader.getParent()) {
+            if (loader instanceof java.net.URLClassLoader urlClassLoader) {
+                for (URL url : urlClassLoader.getURLs()) {
+                    try {
+                        if ("file".equalsIgnoreCase(url.getProtocol())) {
+                            entries.add(
+                                    Path.of(url.toURI())
+                                            .toAbsolutePath()
+                                            .toString()
+                            );
+                        }
+                    } catch (Exception ignored) {
+                    }
+                }
             }
         }
 
