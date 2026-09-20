@@ -4,7 +4,6 @@ import net.minecraft.scoreboard.Scoreboard;
 import net.minecraft.scoreboard.ScoreboardCriterion;
 import net.minecraft.scoreboard.ScoreboardDisplaySlot;
 import net.minecraft.scoreboard.ScoreboardObjective;
-import net.minecraft.scoreboard.ScoreboardScore;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.text.Text;
 import net.minecraft.scoreboard.ScoreHolder;
@@ -131,7 +130,7 @@ public final class GafiScoreboard {
             ScoreHolder scoreHolder =
                     ScoreHolder.fromName(holder);
 
-            ScoreboardScore score =
+            var score =
                     scoreboard.getScore(
                             scoreHolder,
                             objective
