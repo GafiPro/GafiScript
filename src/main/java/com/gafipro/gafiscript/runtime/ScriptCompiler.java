@@ -49,9 +49,10 @@ public final class ScriptCompiler {
         }
 
         String className = findMainClass(source, scriptName);
+        String preparedSource = addGafiApiImports(source);
         String instrumented =
                 ScriptDebugInstrumentation.instrument(
-                        source,
+                        preparedSource,
                         scriptName
                 );
 
@@ -158,12 +159,14 @@ public final class ScriptCompiler {
                                         )
                         );
 
+                String preparedSource = addGafiApiImports(source);
+
                 units.add(
                         new SourceUnit(
                                 binaryName,
                                 ScriptDebugInstrumentation
                                         .instrument(
-                                                source,
+                                                preparedSource,
                                                 binaryName
                                         )
                         )
@@ -305,6 +308,31 @@ public final class ScriptCompiler {
                     throwable.getMessage()
             );
         }
+    }
+
+    private static String addGafiApiImports(String source) {
+        String apiImport =
+                "import com.gafipro.gafiscript.api.*;";
+
+        if (source.contains(apiImport)) {
+            return source;
+        }
+
+        var packageMatcher = java.util.regex.Pattern
+                .compile(
+                        "(?m)^(\\s*package\\s+[A-Za-z_$][A-Za-z0-9_$.]*\\s*;)"
+                )
+                .matcher(source);
+
+        if (packageMatcher.find()) {
+            int end = packageMatcher.end();
+            return source.substring(0, end) +
+                    " " +
+                    apiImport +
+                    source.substring(end);
+        }
+
+        return apiImport + source;
     }
 
     private static JavaCompiler getCompiler() {
