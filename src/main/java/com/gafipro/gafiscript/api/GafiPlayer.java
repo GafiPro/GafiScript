@@ -1,7 +1,6 @@
 package com.gafipro.gafiscript.api;
 
 import net.minecraft.entity.effect.StatusEffectInstance;
-import net.minecraft.entity.effect.StatusEffects;
 import net.minecraft.entity.player.PlayerInventory;
 import net.minecraft.item.ItemStack;
 import net.minecraft.item.Items;
@@ -28,7 +27,7 @@ public final class GafiPlayer {
     }
 
     public GafiWorld world() {
-        return new GafiWorld(handle.server, handle.getServerWorld());
+        return new GafiWorld(handle.getServer(), handle.getServerWorld());
     }
 
     public double health() {
@@ -36,7 +35,9 @@ public final class GafiPlayer {
     }
 
     public void setHealth(double health) {
-        Gafi.runSync(() -> handle.setHealth((float) Math.max(0, Math.min(health, handle.getMaxHealth()))));
+        Gafi.runSync(() -> handle.setHealth(
+                (float) Math.max(0, Math.min(health, handle.getMaxHealth()))
+        ));
     }
 
     public int level() {
@@ -84,9 +85,17 @@ public final class GafiPlayer {
 
     public void giveItem(String itemId, int amount) {
         Gafi.runSync(() -> {
-            var item = net.minecraft.registry.Registries.ITEM.get(net.minecraft.util.Identifier.of(itemId));
+            var item = net.minecraft.registry.Registries.ITEM.get(
+                    net.minecraft.util.Identifier.of(itemId)
+            );
+
             if (item == Items.AIR) return;
-            ItemStack stack = new ItemStack(item, Math.max(1, Math.min(amount, 64)));
+
+            ItemStack stack = new ItemStack(
+                    item,
+                    Math.max(1, Math.min(amount, 64))
+            );
+
             PlayerInventory inventory = handle.getInventory();
             if (!inventory.insertStack(stack)) {
                 handle.dropItem(stack, false);
@@ -96,11 +105,16 @@ public final class GafiPlayer {
 
     public void removeItem(String itemId, int amount) {
         Gafi.runSync(() -> {
-            var item = net.minecraft.registry.Registries.ITEM.get(net.minecraft.util.Identifier.of(itemId));
+            var item = net.minecraft.registry.Registries.ITEM.get(
+                    net.minecraft.util.Identifier.of(itemId)
+            );
+
             int remaining = Math.max(0, amount);
             PlayerInventory inventory = handle.getInventory();
+
             for (int slot = 0; slot < inventory.size() && remaining > 0; slot++) {
                 ItemStack stack = inventory.getStack(slot);
+
                 if (stack.isOf(item)) {
                     int take = Math.min(remaining, stack.getCount());
                     stack.decrement(take);
@@ -115,12 +129,15 @@ public final class GafiPlayer {
             var effect = net.minecraft.registry.Registries.STATUS_EFFECT.get(
                     net.minecraft.util.Identifier.of(effectId)
             );
+
             if (effect != null) {
-                handle.addStatusEffect(new StatusEffectInstance(
-                        effect,
-                        Math.max(1, seconds * 20),
-                        Math.max(0, amplifier)
-                ));
+                handle.addStatusEffect(
+                        new StatusEffectInstance(
+                                effect,
+                                Math.max(1, seconds * 20),
+                                Math.max(0, amplifier)
+                        )
+                );
             }
         });
     }
