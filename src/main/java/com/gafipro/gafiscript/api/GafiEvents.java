@@ -162,7 +162,7 @@ public final class GafiEvents {
 
             GafiItemUseEvent event = new GafiItemUseEvent(
                     new GafiPlayer(serverPlayer),
-                    world.getStackInHand(hand).copy()
+                    serverPlayer.getStackInHand(hand).copy()
             );
 
             INSTANCE.itemUseListeners.forEach(listener ->
