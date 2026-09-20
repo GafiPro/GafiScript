@@ -1,5 +1,6 @@
 package com.gafipro.gafiscript.api;
 
+import net.minecraft.server.world.ServerWorld;
 import net.minecraft.util.hit.BlockHitResult;
 
 public record GafiRaycastHit(
@@ -8,7 +9,9 @@ public record GafiRaycastHit(
         String blockId,
         String side
 ) {
-    public static GafiRaycastHit miss(GafiPosition position) {
+    public static GafiRaycastHit miss(
+            GafiPosition position
+    ) {
         return new GafiRaycastHit(
                 false,
                 position,
@@ -17,8 +20,12 @@ public record GafiRaycastHit(
         );
     }
 
-    public static GafiRaycastHit from(BlockHitResult result) {
+    public static GafiRaycastHit from(
+            BlockHitResult result,
+            ServerWorld world
+    ) {
         var pos = result.getBlockPos();
+        var state = world.getBlockState(pos);
 
         return new GafiRaycastHit(
                 true,
@@ -28,12 +35,7 @@ public record GafiRaycastHit(
                         result.getPos().z
                 ),
                 net.minecraft.registry.Registries.BLOCK
-                        .getId(
-                                result.getBlockPos() == null
-                                        ? net.minecraft.block.Blocks.AIR
-                                        : result.getBlockState()
-                                                .getBlock()
-                        )
+                        .getId(state.getBlock())
                         .toString(),
                 result.getSide().getName()
         );
