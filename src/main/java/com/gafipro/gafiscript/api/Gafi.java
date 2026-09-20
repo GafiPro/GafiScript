@@ -81,6 +81,18 @@ public final class Gafi {
         }
     }
 
+    public static GafiStorage storage(String namespace) {
+        return new GafiStorage(server(), namespace);
+    }
+
+    public static GafiConfig config(String namespace) {
+        return new GafiConfig(server(), namespace);
+    }
+
+    public static GafiDatabase database(String namespace) {
+        return new GafiDatabase(server(), namespace);
+    }
+
     public static GafiTask delayTicks(long ticks, Runnable action) {
         return scheduler().delayTicks(ticks, action);
     }
@@ -106,24 +118,15 @@ public final class Gafi {
     }
 
     public static void logInfo(String message) {
-        com.gafipro.gafiscript.GafiScriptMod.LOGGER.info(
-                "[Script] {}",
-                message
-        );
+        com.gafipro.gafiscript.GafiScriptMod.LOGGER.info("[Script] {}", message);
     }
 
     public static void logWarn(String message) {
-        com.gafipro.gafiscript.GafiScriptMod.LOGGER.warn(
-                "[Script] {}",
-                message
-        );
+        com.gafipro.gafiscript.GafiScriptMod.LOGGER.warn("[Script] {}", message);
     }
 
     public static void logError(String message) {
-        com.gafipro.gafiscript.GafiScriptMod.LOGGER.error(
-                "[Script] {}",
-                message
-        );
+        com.gafipro.gafiscript.GafiScriptMod.LOGGER.error("[Script] {}", message);
     }
 
     public static void runSync(Runnable runnable) {
