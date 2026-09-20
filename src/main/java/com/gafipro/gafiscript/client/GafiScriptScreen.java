@@ -14,8 +14,17 @@ import net.minecraft.util.math.BlockPos;
 public final class GafiScriptScreen extends Screen {
     private final BlockPos blockPos;
     private final GafiCodeEditor editor;
+
     private TextFieldWidget nameField;
+    private TextFieldWidget searchField;
+    private TextFieldWidget replaceField;
+
+    private ButtonWidget nextButton;
+    private ButtonWidget replaceButton;
+    private ButtonWidget replaceAllButton;
+
     private String scriptName = "Main";
+    private boolean searchVisible;
 
     public GafiScriptScreen(BlockPos blockPos) {
         super(Text.translatable("screen.gafiscript.editor"));
@@ -25,43 +34,165 @@ public final class GafiScriptScreen extends Screen {
 
     @Override
     protected void init() {
-        int top = 28;
-        nameField = new TextFieldWidget(textRenderer, 12, 6, 210, 20, Text.literal("Script name"));
+        nameField = new TextFieldWidget(
+                textRenderer,
+                12,
+                6,
+                210,
+                20,
+                Text.literal("Script name")
+        );
         nameField.setText(scriptName);
         addDrawableChild(nameField);
 
-        addDrawableChild(ButtonWidget.builder(Text.translatable("gafiscript.ui.save"), button -> save())
-                .dimensions(width - 220, 6, 64, 20).build());
+        addDrawableChild(
+                ButtonWidget.builder(
+                        Text.translatable("gafiscript.ui.save"),
+                        button -> save()
+                ).dimensions(width - 220, 6, 64, 20).build()
+        );
 
-        addDrawableChild(ButtonWidget.builder(Text.translatable("gafiscript.ui.run"), button -> run())
-                .dimensions(width - 150, 6, 64, 20).build());
+        addDrawableChild(
+                ButtonWidget.builder(
+                        Text.translatable("gafiscript.ui.run"),
+                        button -> run()
+                ).dimensions(width - 150, 6, 64, 20).build()
+        );
 
-        addDrawableChild(ButtonWidget.builder(Text.translatable("gafiscript.ui.reload"), button -> {
-                    GafiScriptNetworking.sendScriptRequest(blockPos);
-                })
-                .dimensions(width - 80, 6, 68, 20).build());
+        addDrawableChild(
+                ButtonWidget.builder(
+                        Text.literal("Docs"),
+                        button -> toggleSearch()
+                ).dimensions(width - 80, 6, 68, 20).build()
+        );
 
-        editor.resize(10, top + 6, width - 20, height - top - 18, textRenderer);
+        searchField = new TextFieldWidget(
+                textRenderer,
+                10,
+                height - 24,
+                180,
+                20,
+                Text.literal("Find")
+        );
+
+        replaceField = new TextFieldWidget(
+                textRenderer,
+                195,
+                height - 24,
+                180,
+                20,
+                Text.literal("Replace")
+        );
+
+        addDrawableChild(searchField);
+        addDrawableChild(replaceField);
+
+        nextButton = ButtonWidget.builder(
+                Text.literal("Next"),
+                button -> editor.findNext(searchField.getText())
+        ).dimensions(380, height - 24, 48, 20).build();
+
+        replaceButton = ButtonWidget.builder(
+                Text.literal("Replace"),
+                button -> editor.replaceCurrent(
+                        searchField.getText(),
+                        replaceField.getText()
+                )
+        ).dimensions(432, height - 24, 62, 20).build();
+
+        replaceAllButton = ButtonWidget.builder(
+                Text.literal("All"),
+                button -> editor.replaceAll(
+                        searchField.getText(),
+                        replaceField.getText()
+                )
+        ).dimensions(498, height - 24, 42, 20).build();
+
+        addDrawableChild(nextButton);
+        addDrawableChild(replaceButton);
+        addDrawableChild(replaceAllButton);
+
+        addDrawableChild(
+                ButtonWidget.builder(
+                        Text.literal("Format"),
+                        button -> editor.formatJava()
+                ).dimensions(544, height - 24, 58, 20).build()
+        );
+
+        setSearchVisible(false);
+
+        editor.resize(
+                10,
+                34,
+                width - 20,
+                height - 66,
+                textRenderer
+        );
     }
 
-    public void setScriptData(BlockPos pos, String name, String source) {
-        if (!blockPos.equals(pos)) return;
-        this.scriptName = name == null || name.isBlank() ? "Main" : name;
-        if (this.nameField != null) {
-            this.nameField.setText(this.scriptName);
+    public void setScriptData(
+            BlockPos pos,
+            String name,
+            String source
+    ) {
+        if (!blockPos.equals(pos)) {
+            return;
         }
-        this.editor.setText(source == null ? "" : source);
+
+        this.scriptName =
+                name == null || name.isBlank()
+                        ? "Main"
+                        : name;
+
+        if (nameField != null) {
+            nameField.setText(this.scriptName);
+        }
+
+        this.editor.setText(
+                source == null ? "" : source
+        );
+
         this.editor.clearProblems();
     }
 
     private void save() {
         scriptName = nameField.getText();
-        GafiScriptNetworking.sendSave(blockPos, scriptName, editor.getText());
+
+        GafiScriptNetworking.sendSave(
+                blockPos,
+                scriptName,
+                editor.getText()
+        );
     }
 
     private void run() {
         scriptName = nameField.getText();
-        GafiScriptNetworking.sendRun(blockPos, scriptName, editor.getText());
+
+        GafiScriptNetworking.sendRun(
+                blockPos,
+                scriptName,
+                editor.getText()
+        );
+    }
+
+    private void toggleSearch() {
+        setSearchVisible(!searchVisible);
+
+        if (searchVisible) {
+            searchField.setFocused(true);
+        } else {
+            nameField.setFocused(true);
+        }
+    }
+
+    private void setSearchVisible(boolean visible) {
+        searchVisible = visible;
+
+        searchField.visible = visible;
+        replaceField.visible = visible;
+        nextButton.visible = visible;
+        replaceButton.visible = visible;
+        replaceAllButton.visible = visible;
     }
 
     @Override
@@ -70,22 +201,63 @@ public final class GafiScriptScreen extends Screen {
         int scanCode = input.scancode();
         int modifiers = input.modifiers();
 
-        if (input.hasCtrl() && keyCode == org.lwjgl.glfw.GLFW.GLFW_KEY_S) {
+        if (input.hasCtrl() &&
+                keyCode == org.lwjgl.glfw.GLFW.GLFW_KEY_S) {
             save();
             return true;
         }
 
-        if (keyCode == org.lwjgl.glfw.GLFW.GLFW_KEY_F5) {
+        if (input.hasCtrl() &&
+                keyCode == org.lwjgl.glfw.GLFW.GLFW_KEY_F) {
+            setSearchVisible(true);
+            searchField.setFocused(true);
+            return true;
+        }
+
+        if (input.hasCtrl() &&
+                keyCode == org.lwjgl.glfw.GLFW.GLFW_KEY_H) {
+            setSearchVisible(true);
+            replaceField.setFocused(true);
+            return true;
+        }
+
+        if (searchVisible &&
+                keyCode == org.lwjgl.glfw.GLFW.GLFW_KEY_ENTER) {
+            if (replaceField.isFocused()) {
+                editor.replaceCurrent(
+                        searchField.getText(),
+                        replaceField.getText()
+                );
+            } else {
+                editor.findNext(
+                        searchField.getText()
+                );
+            }
+
+            return true;
+        }
+
+        if (keyCode ==
+                org.lwjgl.glfw.GLFW.GLFW_KEY_F5) {
             run();
             return true;
         }
 
-        if (input.hasCtrl() && keyCode == org.lwjgl.glfw.GLFW.GLFW_KEY_SPACE) {
+        if (input.hasCtrl() &&
+                keyCode ==
+                        org.lwjgl.glfw.GLFW.GLFW_KEY_SPACE) {
             editor.toggleCompletion();
             return true;
         }
 
-        if (!nameField.isFocused() && editor.keyPressed(keyCode, scanCode, modifiers)) {
+        if (!nameField.isFocused() &&
+                !searchField.isFocused() &&
+                !replaceField.isFocused() &&
+                editor.keyPressed(
+                        keyCode,
+                        scanCode,
+                        modifiers
+                )) {
             return true;
         }
 
@@ -94,32 +266,75 @@ public final class GafiScriptScreen extends Screen {
 
     @Override
     public boolean charTyped(CharInput input) {
-        if (!nameField.isFocused() && input.isValidChar() &&
-                editor.charTyped(input.asString(), input.modifiers())) {
+        if (!nameField.isFocused() &&
+                !searchField.isFocused() &&
+                !replaceField.isFocused() &&
+                input.isValidChar() &&
+                editor.charTyped(
+                        input.asString(),
+                        input.modifiers()
+                )) {
             return true;
         }
+
         return super.charTyped(input);
     }
 
     @Override
-    public boolean mouseClicked(Click click, boolean doubled) {
-        if (click.y() >= 34 && click.x() >= 10 && click.x() <= width - 10) {
-            editor.mouseClicked(click.x(), click.y(), click.buttonInfo().button());
+    public boolean mouseClicked(
+            Click click,
+            boolean doubled
+    ) {
+        if (click.y() >= 34 &&
+                click.y() < height - 30 &&
+                click.x() >= 10 &&
+                click.x() <= width - 10) {
+
+            editor.mouseClicked(
+                    click.x(),
+                    click.y(),
+                    click.buttonInfo().button()
+            );
         }
-        return super.mouseClicked(click, doubled);
+
+        return super.mouseClicked(
+                click,
+                doubled
+        );
     }
 
     @Override
-    public void render(DrawContext context, int mouseX, int mouseY, float delta) {
-        renderBackground(context, mouseX, mouseY, delta);
+    public void render(
+            DrawContext context,
+            int mouseX,
+            int mouseY,
+            float delta
+    ) {
+        renderBackground(
+                context,
+                mouseX,
+                mouseY,
+                delta
+        );
 
         context.drawTextWithShadow(
                 textRenderer,
-                Text.literal("§7Block: " + blockPos.toShortString()),
-                235, 11, 0xFFFFFFFF
+                Text.literal(
+                        "§7Block: " +
+                        blockPos.toShortString()
+                ),
+                235,
+                11,
+                0xFFFFFFFF
         );
 
         editor.render(context);
-        super.render(context, mouseX, mouseY, delta);
+
+        super.render(
+                context,
+                mouseX,
+                mouseY,
+                delta
+        );
     }
 }
