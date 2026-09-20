@@ -1,3 +1,5 @@
+import com.gafipro.gafiscript.api.GafiPosition;
+
 import static com.gafipro.gafiscript.api.Gafi.*;
 
 public class BoatRace {
