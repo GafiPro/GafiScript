@@ -177,6 +177,28 @@ public final class GafiScriptCommands {
                                                                     );
                                                                     return 1;
                                                                 })))
+                                                .then(literal("edit")
+                                                        .then(argument("project", StringArgumentType.word())
+                                                                .executes(context -> {
+                                                                    String name =
+                                                                            StringArgumentType.getString(
+                                                                                    context,
+                                                                                    "project"
+                                                                            );
+
+                                                                    var player =
+                                                                            context.getSource().getPlayer();
+
+                                                                    if (player != null) {
+                                                                        com.gafipro.gafiscript.net.GafiScriptNetworking
+                                                                                .openProjectFromServer(
+                                                                                        player,
+                                                                                        name
+                                                                                );
+                                                                    }
+
+                                                                    return 1;
+                                                                })))
                                                 .then(literal("export")
                                                         .then(argument("project", StringArgumentType.word())
                                                                 .executes(context -> {
@@ -227,7 +249,7 @@ public final class GafiScriptCommands {
     private static void sendHelp(ServerCommandSource source) {
         source.sendFeedback(
                 () -> Text.literal(
-                        "/gafiscript help | list | run <script> | stop <script> | info <script> | project <list|create|run|reload|export|import>"
+                        "/gafiscript help | list | run <script> | stop <script> | info <script> | project <list|create|run|reload|edit|export|import>"
                 ),
                 false
         );
