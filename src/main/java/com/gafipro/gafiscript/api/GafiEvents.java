@@ -28,6 +28,10 @@ public final class GafiEvents {
             new CopyOnWriteArrayList<>();
     private final List<Listener<GafiBlockUseEvent>> useListeners =
             new CopyOnWriteArrayList<>();
+    private final List<Listener<GafiItemUseEvent>> itemUseListeners =
+            new CopyOnWriteArrayList<>();
+    private final List<Listener<GafiEntityUseEvent>> entityUseListeners =
+            new CopyOnWriteArrayList<>();
     private final List<Listener<GafiServerTickEvent>> tickListeners =
             new CopyOnWriteArrayList<>();
 
