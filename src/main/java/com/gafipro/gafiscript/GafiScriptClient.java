@@ -14,7 +14,8 @@ public final class GafiScriptClient implements ClientModInitializer {
         GafiScriptNetworking.registerClient();
 
         UseBlockCallback.EVENT.register((player, world, hand, hitResult) -> {
-            if (!world.isClient || world.getBlockState(hitResult.getBlockPos()).getBlock() != ModBlocks.GAFI_SCRIPT_BLOCK) {
+            if (!world.isClient() ||
+                    world.getBlockState(hitResult.getBlockPos()).getBlock() != ModBlocks.GAFI_SCRIPT_BLOCK) {
                 return ActionResult.PASS;
             }
 
