@@ -97,6 +97,140 @@ public final class GafiScriptCommands {
                                                             );
                                                             return 1;
                                                         })))
+                                        .then(literal("repl")
+                                                .then(argument("code", StringArgumentType.greedyString())
+                                                        .executes(context -> {
+                                                            String code =
+                                                                    StringArgumentType.getString(
+                                                                            context,
+                                                                            "code"
+                                                                    );
+
+                                                            var source =
+                                                                    context.getSource();
+
+                                                            com.gafipro.gafiscript.api.GafiRepl
+                                                                    .evaluate(
+                                                                            source.getServer(),
+                                                                            source.getName(),
+                                                                            code
+                                                                    )
+                                                                    .thenAccept(result ->
+                                                                            source.getServer().execute(() ->
+                                                                                    source.sendFeedback(
+                                                                                            () -> Text.literal(
+                                                                                                    "[REPL] " + result
+                                                                                            ),
+                                                                                            false
+                                                                                    )
+                                                                            )
+                                                                    );
+
+                                                            source.sendFeedback(
+                                                                    () -> Text.literal("REPL evaluation scheduled."),
+                                                                    false
+                                                            );
+
+                                                            return 1;
+                                                        })))
+                                        .then(literal("debug")
+                                                .then(literal("enable")
+                                                        .executes(context -> {
+                                                            com.gafipro.gafiscript.api.GafiDebugger.enable();
+                                                            context.getSource().sendFeedback(
+                                                                    () -> Text.literal("Debugger enabled."),
+                                                                    false
+                                                            );
+                                                            return 1;
+                                                        }))
+                                                .then(literal("disable")
+                                                        .executes(context -> {
+                                                            com.gafipro.gafiscript.api.GafiDebugger.disable();
+                                                            context.getSource().sendFeedback(
+                                                                    () -> Text.literal("Debugger disabled."),
+                                                                    false
+                                                            );
+                                                            return 1;
+                                                        }))
+                                                .then(literal("break")
+                                                        .then(argument("script", StringArgumentType.word())
+                                                                .then(argument("line", com.mojang.brigadier.arguments.IntegerArgumentType.integer(1))
+                                                                        .executes(context -> {
+                                                                            String script =
+                                                                                    StringArgumentType.getString(
+                                                                                            context,
+                                                                                            "script"
+                                                                                    );
+
+                                                                            int line =
+                                                                                    com.mojang.brigadier.arguments.IntegerArgumentType.getInteger(
+                                                                                            context,
+                                                                                            "line"
+                                                                                    );
+
+                                                                            com.gafipro.gafiscript.api.GafiDebugger.breakpoint(
+                                                                                    script,
+                                                                                    line
+                                                                            );
+
+                                                                            context.getSource().sendFeedback(
+                                                                                    () -> Text.literal(
+                                                                                            "Breakpoint set: " +
+                                                                                                    script +
+                                                                                                    ":" +
+                                                                                                    line
+                                                                                    ),
+                                                                                    false
+                                                                            );
+
+                                                                            return 1;
+                                                                        }))))
+                                                .then(literal("clear")
+                                                        .then(argument("script", StringArgumentType.word())
+                                                                .then(argument("line", com.mojang.brigadier.arguments.IntegerArgumentType.integer(1))
+                                                                        .executes(context -> {
+                                                                            String script =
+                                                                                    StringArgumentType.getString(
+                                                                                            context,
+                                                                                            "script"
+                                                                                    );
+
+                                                                            int line =
+                                                                                    com.mojang.brigadier.arguments.IntegerArgumentType.getInteger(
+                                                                                            context,
+                                                                                            "line"
+                                                                                    );
+
+                                                                            com.gafipro.gafiscript.api.GafiDebugger.clearBreakpoint(
+                                                                                    script,
+                                                                                    line
+                                                                            );
+
+                                                                            return 1;
+                                                                        }))))
+                                                .then(literal("hits")
+                                                        .then(argument("script", StringArgumentType.word())
+                                                                .executes(context -> {
+                                                                    String script =
+                                                                            StringArgumentType.getString(
+                                                                                    context,
+                                                                                    "script"
+                                                                            );
+
+                                                                    var hits =
+                                                                            com.gafipro.gafiscript.api.GafiDebugger.recentHits(
+                                                                                    script
+                                                                            );
+
+                                                                    context.getSource().sendFeedback(
+                                                                            () -> Text.literal(
+                                                                                    "Debugger hits: " + hits
+                                                                            ),
+                                                                            false
+                                                                    );
+
+                                                                    return 1;
+                                                                }))))
                                         .then(literal("project")
                                                 .then(literal("list")
                                                         .executes(context -> {
@@ -249,7 +383,7 @@ public final class GafiScriptCommands {
     private static void sendHelp(ServerCommandSource source) {
         source.sendFeedback(
                 () -> Text.literal(
-                        "/gafiscript help | list | run <script> | stop <script> | info <script> | project <list|create|run|reload|edit|export|import>"
+                        "/gafiscript help | list | run <script> | stop <script> | info <script> | project <list|create|run|reload|edit|export|import> | repl <code> | debug <enable|disable|break|clear|hits>"
                 ),
                 false
         );
