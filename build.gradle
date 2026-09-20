@@ -51,10 +51,13 @@ java {
 
 tasks.test {
     useJUnitPlatform()
-    systemProperty(
-            "gafiscript.test.classpath",
-            configurations.testRuntimeClasspath.asPath
-    )
+
+    doFirst {
+        systemProperty(
+                "gafiscript.test.classpath",
+                configurations.testRuntimeClasspath.asPath
+        )
+    }
 }
 
 jar {
