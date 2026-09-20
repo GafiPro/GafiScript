@@ -6,6 +6,7 @@ import com.gafipro.gafiscript.runtime.ScriptManager;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
 import net.fabricmc.fabric.api.networking.v1.PayloadTypeRegistry;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
+import net.minecraft.command.DefaultPermissions;
 import net.minecraft.network.RegistryByteBuf;
 import net.minecraft.network.codec.PacketCodec;
 import net.minecraft.network.codec.PacketCodecs;
@@ -34,8 +35,8 @@ public final class GafiScriptNetworking {
         public static final PacketCodec<RegistryByteBuf, SaveScriptPayload> CODEC =
                 PacketCodec.tuple(
                         BlockPos.PACKET_CODEC, SaveScriptPayload::pos,
-                        PacketCodecs.STRING_UTF8, SaveScriptPayload::name,
-                        PacketCodecs.STRING_UTF8, SaveScriptPayload::source,
+                        PacketCodecs.STRING, SaveScriptPayload::name,
+                        PacketCodecs.STRING, SaveScriptPayload::source,
                         SaveScriptPayload::new
                 );
         @Override public Id<? extends CustomPayload> getId() { return ID; }
@@ -46,8 +47,8 @@ public final class GafiScriptNetworking {
         public static final PacketCodec<RegistryByteBuf, RunScriptPayload> CODEC =
                 PacketCodec.tuple(
                         BlockPos.PACKET_CODEC, RunScriptPayload::pos,
-                        PacketCodecs.STRING_UTF8, RunScriptPayload::name,
-                        PacketCodecs.STRING_UTF8, RunScriptPayload::source,
+                        PacketCodecs.STRING, RunScriptPayload::name,
+                        PacketCodecs.STRING, RunScriptPayload::source,
                         RunScriptPayload::new
                 );
         @Override public Id<? extends CustomPayload> getId() { return ID; }
@@ -58,8 +59,8 @@ public final class GafiScriptNetworking {
         public static final PacketCodec<RegistryByteBuf, ScriptDataPayload> CODEC =
                 PacketCodec.tuple(
                         BlockPos.PACKET_CODEC, ScriptDataPayload::pos,
-                        PacketCodecs.STRING_UTF8, ScriptDataPayload::name,
-                        PacketCodecs.STRING_UTF8, ScriptDataPayload::source,
+                        PacketCodecs.STRING, ScriptDataPayload::name,
+                        PacketCodecs.STRING, ScriptDataPayload::source,
                         ScriptDataPayload::new
                 );
         @Override public Id<? extends CustomPayload> getId() { return ID; }
@@ -68,10 +69,7 @@ public final class GafiScriptNetworking {
     public record MessagePayload(String message) implements CustomPayload {
         public static final Id<MessagePayload> ID = new Id<>(MESSAGE_ID);
         public static final PacketCodec<RegistryByteBuf, MessagePayload> CODEC =
-                PacketCodec.tuple(
-                        PacketCodecs.STRING_UTF8, MessagePayload::message,
-                        MessagePayload::new
-                );
+                PacketCodec.tuple(PacketCodecs.STRING, MessagePayload::message, MessagePayload::new);
         @Override public Id<? extends CustomPayload> getId() { return ID; }
     }
 
@@ -86,9 +84,9 @@ public final class GafiScriptNetworking {
 
         ServerPlayNetworking.registerGlobalReceiver(RequestScriptPayload.ID, (payload, context) -> {
             ServerPlayerEntity player = context.player();
-            if (!player.hasPermissionLevel(2)) return;
+            if (!canEdit(player)) return;
 
-            if (!(player.getServerWorld().getBlockEntity(payload.pos()) instanceof GafiScriptBlockEntity blockEntity)) {
+            if (!(player.getWorld().getBlockEntity(payload.pos()) instanceof GafiScriptBlockEntity blockEntity)) {
                 return;
             }
 
@@ -100,13 +98,13 @@ public final class GafiScriptNetworking {
 
         ServerPlayNetworking.registerGlobalReceiver(SaveScriptPayload.ID, (payload, context) -> {
             ServerPlayerEntity player = context.player();
-            if (!player.hasPermissionLevel(2)) return;
+            if (!canEdit(player)) return;
             saveBlock(player, payload.pos(), payload.name(), payload.source());
         });
 
         ServerPlayNetworking.registerGlobalReceiver(RunScriptPayload.ID, (payload, context) -> {
             ServerPlayerEntity player = context.player();
-            if (!player.hasPermissionLevel(2)) return;
+            if (!canEdit(player)) return;
             if (!saveBlock(player, payload.pos(), payload.name(), payload.source())) return;
 
             ScriptManager.runSourceAsync(player.getServer(), payload.name(), payload.source())
@@ -130,7 +128,9 @@ public final class GafiScriptNetworking {
 
         ClientPlayNetworking.registerGlobalReceiver(MessagePayload.ID, (payload, context) -> {
             context.client().execute(() ->
-                    context.client().inGameHud.getChatHud().addMessage(Text.literal("[GafiScript] " + payload.message())));
+                    context.client().inGameHud.getChatHud().addMessage(
+                            Text.literal("[GafiScript] " + payload.message())
+                    ));
         });
     }
 
@@ -146,12 +146,18 @@ public final class GafiScriptNetworking {
         ClientPlayNetworking.send(new RunScriptPayload(pos, name, source));
     }
 
+    private static boolean canEdit(ServerPlayerEntity player) {
+        return player.getCommandSource()
+                .getPermissions()
+                .hasPermission(DefaultPermissions.GAMEMASTERS);
+    }
+
     private static boolean saveBlock(ServerPlayerEntity player, BlockPos pos, String name, String source) {
         if (source.length() > GafiScriptBlockEntity.MAX_SOURCE_LENGTH) {
             ServerPlayNetworking.send(player, new MessagePayload("Source is too large."));
             return false;
         }
-        if (!(player.getServerWorld().getBlockEntity(pos) instanceof GafiScriptBlockEntity blockEntity)) {
+        if (!(player.getWorld().getBlockEntity(pos) instanceof GafiScriptBlockEntity blockEntity)) {
             ServerPlayNetworking.send(player, new MessagePayload("No GafiScript block found."));
             return false;
         }
@@ -162,7 +168,9 @@ public final class GafiScriptNetworking {
             blockEntity.markDirty();
             return true;
         } catch (Exception e) {
-            ServerPlayNetworking.send(player, new MessagePayload(e.getMessage()));
+            ServerPlayNetworking.send(player, new MessagePayload(
+                    e.getMessage() == null ? e.getClass().getSimpleName() : e.getMessage()
+            ));
             return false;
         }
     }
