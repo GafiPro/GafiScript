@@ -6,6 +6,7 @@ import net.fabricmc.fabric.api.event.player.UseBlockCallback;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayConnectionEvents;
 import net.fabricmc.fabric.api.event.player.PlayerBlockBreakEvents;
 import net.minecraft.util.ActionResult;
+import net.minecraft.server.network.ServerPlayerEntity;
 
 import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
@@ -41,16 +42,33 @@ public final class GafiEvents {
         });
 
         PlayerBlockBreakEvents.AFTER.register((world, player, pos, state, entity) -> {
-            GafiBlockBreakEvent event = new GafiBlockBreakEvent(new GafiPlayer(player), new GafiPosition(pos.getX(), pos.getY(), pos.getZ()), state);
+            if (!(player instanceof ServerPlayerEntity serverPlayer)) {
+                return;
+            }
+
+            GafiBlockBreakEvent event = new GafiBlockBreakEvent(
+                    new GafiPlayer(serverPlayer),
+                    new GafiPosition(pos.getX(), pos.getY(), pos.getZ()),
+                    state
+            );
+
             INSTANCE.breakListeners.forEach(listener -> safe(() -> listener.accept(event)));
         });
 
         UseBlockCallback.EVENT.register((player, world, hand, hitResult) -> {
-            if (world.isClient) return ActionResult.PASS;
+            if (world.isClient() || !(player instanceof ServerPlayerEntity serverPlayer)) {
+                return ActionResult.PASS;
+            }
+
             GafiBlockUseEvent event = new GafiBlockUseEvent(
-                    new GafiPlayer((net.minecraft.server.network.ServerPlayerEntity) player),
-                    new GafiPosition(hitResult.getBlockPos().getX(), hitResult.getBlockPos().getY(), hitResult.getBlockPos().getZ())
+                    new GafiPlayer(serverPlayer),
+                    new GafiPosition(
+                            hitResult.getBlockPos().getX(),
+                            hitResult.getBlockPos().getY(),
+                            hitResult.getBlockPos().getZ()
+                    )
             );
+
             INSTANCE.useListeners.forEach(listener -> safe(() -> listener.accept(event)));
             return event.isCancelled() ? ActionResult.FAIL : ActionResult.PASS;
         });
