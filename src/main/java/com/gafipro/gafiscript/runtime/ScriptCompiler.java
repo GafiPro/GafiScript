@@ -1,6 +1,7 @@
 package com.gafipro.gafiscript.runtime;
 
 import com.github.javaparser.ParseProblemException;
+import com.github.javaparser.ParserConfiguration;
 import com.github.javaparser.StaticJavaParser;
 import com.gafipro.gafiscript.GafiScriptMod;
 import com.gafipro.gafiscript.security.ScriptSecurity;
@@ -26,6 +27,13 @@ import java.util.UUID;
 import java.util.stream.Collectors;
 
 public final class ScriptCompiler {
+    static {
+        StaticJavaParser.getParserConfiguration()
+                .setLanguageLevel(
+                        ParserConfiguration.LanguageLevel.JAVA_21
+                );
+    }
+
     private ScriptCompiler() {}
 
     public static CompilationResult compile(
