@@ -22,6 +22,19 @@ class ScriptSecurityTest {
     }
 
     @Test
+    void blocksUnicodeEscapedForbiddenPackage() {
+        String escaped =
+                "import java.lang." +
+                "\\u0069nvoke.MethodHandles; " +
+                "public class Main {}";
+
+        ScriptSecurity.Validation validation =
+                ScriptSecurity.validate(escaped);
+
+        assertFalse(validation.valid());
+    }
+
+    @Test
     void blocksFilesystemPackages() {
         ScriptSecurity.Validation validation = ScriptSecurity.validate(
                 "import java.nio.file.Files; public class Main {}"
