@@ -13,13 +13,16 @@ import java.util.Locale;
 
 public final class GafiCodeEditor {
     private static final List<String> KEYWORDS = List.of(
-            "public", "private", "protected", "static", "final", "class",
-            "interface", "enum", "record", "void", "int", "long", "double",
-            "float", "boolean", "char", "byte", "short", "new", "return",
-            "if", "else", "for", "while", "do", "switch", "case", "default",
-            "try", "catch", "finally", "throw", "throws", "extends",
-            "implements", "import", "package", "this", "super", "true",
-            "false", "null"
+            "public", "private", "protected", "static", "final", "abstract",
+            "synchronized", "native", "strictfp", "transient", "volatile",
+            "class", "interface", "enum", "record", "sealed", "non-sealed",
+            "permits", "extends", "implements", "void", "var", "int", "long",
+            "double", "float", "boolean", "char", "byte", "short",
+            "new", "return", "if", "else", "for", "while", "do", "switch",
+            "case", "default", "yield", "when", "try", "catch", "finally",
+            "throw", "throws", "import", "package", "this", "super",
+            "instanceof", "assert", "break", "continue", "true", "false",
+            "null"
     );
 
     private static final List<String> API_SUGGESTIONS = List.of(
@@ -1099,10 +1102,7 @@ public final class GafiCodeEditor {
                 trimmed.startsWith("package ")
         ) {
             color = 0xFF569CD6;
-        } else if (
-                KEYWORDS.stream()
-                        .anyMatch(trimmed::startsWith)
-        ) {
+        } else if (containsJava21Keyword(trimmed)) {
             color = 0xFF569CD6;
         }
 
@@ -1114,6 +1114,32 @@ public final class GafiCodeEditor {
                 color,
                 false
         );
+    }
+
+    private boolean containsJava21Keyword(String line) {
+        if (line.isBlank()) {
+            return false;
+        }
+
+        String normalized = line
+                .replaceAll("//.*$", "")
+                .replaceAll("\\"(?:\\\\.|[^\\"])*\\"", "")
+                .replaceAll("[^A-Za-z0-9_$-]+", " ")
+                .trim();
+
+        if (normalized.isBlank()) {
+            return false;
+        }
+
+        for (String keyword : KEYWORDS) {
+            if (normalized.equals(keyword) ||
+                    normalized.startsWith(keyword + " ") ||
+                    normalized.contains(" " + keyword + " ")) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private void renderCompletion(
