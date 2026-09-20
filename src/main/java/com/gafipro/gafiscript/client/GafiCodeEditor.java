@@ -428,6 +428,16 @@ public final class GafiCodeEditor {
                 : getText();
     }
 
+    public void copySelection() {
+        clientClipboard(selectedText());
+    }
+
+    public void cutSelection() {
+        if (!hasSelection()) return;
+        clientClipboard(selectedText());
+        replaceSelectionWith("");
+    }
+
     public void replaceSelectionWith(
             String replacement
     ) {
