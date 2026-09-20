@@ -1,11 +1,17 @@
 # Item API
 
-A API pública atual suporta operações simples de inventário:
+Example:
 
-    player.giveItem("minecraft:diamond", 5);
+    ItemStack reward =
+        Gafi.items()
+            .item("minecraft:diamond")
+            .count(3)
+            .name("§bReward")
+            .lore("First line", "Second line")
+            .customModelData(1234)
+            .glint(true)
+            .build();
 
-    player.removeItem("minecraft:diamond", 1);
+The builder uses Minecraft 1.21.11 Data Components for custom name, item name, lore, custom model data, max stack size and glint override.
 
-Também existe GafiInventory para consultar e editar o inventário do jogador.
-
-O ItemBuilder completo da especificação, com data components, lore, enchantments, attributes, custom model data e consumables, ainda não deve ser tratado como implemented até ser testado contra as mappings exatas do Minecraft 1.21.11.
+Advanced components can be supplied through component(type, value).
