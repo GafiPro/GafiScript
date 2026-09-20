@@ -74,6 +74,18 @@ public final class GafiPlayer {
         handle.sendMessage(Text.literal(message), true);
     }
 
+    public void sendTitle(String title) {
+        GafiTitles.title(this, title);
+    }
+
+    public void sendSubtitle(String subtitle) {
+        GafiTitles.subtitle(this, subtitle);
+    }
+
+    public GafiInventory inventory() {
+        return new GafiInventory(handle.getInventory());
+    }
+
     public void teleport(GafiPosition position) {
         Gafi.runSync(() ->
                 handle.requestTeleport(
