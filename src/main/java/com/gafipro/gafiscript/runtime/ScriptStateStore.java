@@ -44,10 +44,7 @@ public final class ScriptStateStore {
             String key,
             Object value
     ) {
-        String[] parts =
-                key == null
-                        ? new String[0]
-                        : key.trim().split("\.");
+        String[] parts = splitKey(key);
 
         if (parts.length == 0) {
             throw new IllegalArgumentException(
@@ -57,26 +54,15 @@ public final class ScriptStateStore {
 
         JsonObject current = root;
 
-        for (int i = 0;
-             i < parts.length - 1;
-             i++) {
-            var child =
-                    current.get(parts[i]);
+        for (int i = 0; i < parts.length - 1; i++) {
+            var child = current.get(parts[i]);
 
-            if (child == null ||
-                    !child.isJsonObject()) {
-                JsonObject created =
-                        new JsonObject();
-
-                current.add(
-                        parts[i],
-                        created
-                );
-
+            if (child == null || !child.isJsonObject()) {
+                JsonObject created = new JsonObject();
+                current.add(parts[i], created);
                 current = created;
             } else {
-                current =
-                        child.getAsJsonObject();
+                current = child.getAsJsonObject();
             }
         }
 
@@ -94,8 +80,7 @@ public final class ScriptStateStore {
     ) {
         var value = get(key);
 
-        return value != null &&
-                value.isJsonPrimitive()
+        return value != null && value.isJsonPrimitive()
                 ? value.getAsString()
                 : fallback;
     }
@@ -107,8 +92,7 @@ public final class ScriptStateStore {
         var value = get(key);
 
         try {
-            return value != null &&
-                    value.isJsonPrimitive()
+            return value != null && value.isJsonPrimitive()
                     ? value.getAsInt()
                     : fallback;
         } catch (RuntimeException ignored) {
@@ -123,8 +107,7 @@ public final class ScriptStateStore {
         var value = get(key);
 
         try {
-            return value != null &&
-                    value.isJsonPrimitive()
+            return value != null && value.isJsonPrimitive()
                     ? value.getAsBoolean()
                     : fallback;
         } catch (RuntimeException ignored) {
@@ -135,10 +118,7 @@ public final class ScriptStateStore {
     public synchronized void remove(
             String key
     ) {
-        String[] parts =
-                key == null
-                        ? new String[0]
-                        : key.trim().split("\.");
+        String[] parts = splitKey(key);
 
         if (parts.length == 0) {
             return;
@@ -146,33 +126,23 @@ public final class ScriptStateStore {
 
         JsonObject current = root;
 
-        for (int i = 0;
-             i < parts.length - 1;
-             i++) {
-            var child =
-                    current.get(parts[i]);
+        for (int i = 0; i < parts.length - 1; i++) {
+            var child = current.get(parts[i]);
 
-            if (child == null ||
-                    !child.isJsonObject()) {
+            if (child == null || !child.isJsonObject()) {
                 return;
             }
 
-            current =
-                    child.getAsJsonObject();
+            current = child.getAsJsonObject();
         }
 
-        current.remove(
-                parts[parts.length - 1]
-        );
-
+        current.remove(parts[parts.length - 1]);
         save();
     }
 
     public synchronized void save() {
         try {
-            Files.createDirectories(
-                    file.getParent()
-            );
+            Files.createDirectories(file.getParent());
 
             Files.writeString(
                     file,
@@ -194,32 +164,31 @@ public final class ScriptStateStore {
     private synchronized com.google.gson.JsonElement get(
             String key
     ) {
-        String[] parts =
-                key == null
-                        ? new String[0]
-                        : key.trim().split("\.");
-
+        String[] parts = splitKey(key);
         com.google.gson.JsonElement current = root;
 
         for (String part : parts) {
-            if (current == null ||
-                    !current.isJsonObject()) {
+            if (current == null || !current.isJsonObject()) {
                 return null;
             }
 
-            current =
-                    current.getAsJsonObject()
-                            .get(part);
+            current = current.getAsJsonObject().get(part);
         }
 
         return current;
     }
 
+    private static String[] splitKey(String key) {
+        if (key == null || key.isBlank()) {
+            return new String[0];
+        }
+
+        return key.trim().split("\\.", -1);
+    }
+
     private JsonObject load() {
         try {
-            Files.createDirectories(
-                    file.getParent()
-            );
+            Files.createDirectories(file.getParent());
 
             if (!Files.isRegularFile(file)) {
                 return new JsonObject();
@@ -236,9 +205,7 @@ public final class ScriptStateStore {
             }
 
             var parsed =
-                    JsonParser.parseString(
-                            content
-                    );
+                    JsonParser.parseString(content);
 
             return parsed.isJsonObject()
                     ? parsed.getAsJsonObject()
