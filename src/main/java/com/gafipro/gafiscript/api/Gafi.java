@@ -108,6 +108,19 @@ public final class Gafi {
                 : new GafiPlayer(player);
     }
 
+    public static GafiPlayer commandPlayer(Object source) {
+        if (!(source instanceof net.minecraft.server.command.ServerCommandSource commandSource)) {
+            return null;
+        }
+
+        net.minecraft.entity.Entity entity =
+                commandSource.getEntity();
+
+        return entity instanceof ServerPlayerEntity serverPlayer
+                ? new GafiPlayer(serverPlayer)
+                : null;
+    }
+
     public static GafiPlayer playerByUuid(String uuid) {
         try {
             ServerPlayerEntity player =
