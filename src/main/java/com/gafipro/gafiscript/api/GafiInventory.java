@@ -29,6 +29,16 @@ public final class GafiInventory {
         );
     }
 
+    public boolean insert(ItemStack stack) {
+        if (stack == null || stack.isEmpty()) {
+            return false;
+        }
+
+        return inventory.insertStack(
+                stack.copy()
+        );
+    }
+
     public void clear() {
         Gafi.runSync(inventory::clear);
     }
