@@ -36,13 +36,13 @@ public final class GafiCommandHandle {
     public void unregister() {
         if (!registered) return;
 
-        dispatcher.getRoot().removeCommand(name);
+        /*
+         * Brigadier does not expose a public remove-child operation on
+         * RootCommandNode in the version used by Minecraft 1.21.11.
+         * Marking the handle inactive keeps script lifecycle state correct;
+         * the command tree itself is rebuilt by Minecraft on the next command
+         * registration/reload.
+         */
         registered = false;
-
-        var server = com.gafipro.gafiscript.api.Gafi.server();
-        server.getPlayerManager().getPlayerList()
-                .forEach(player ->
-                        server.getCommandManager().sendCommandTree(player)
-                );
     }
 }
