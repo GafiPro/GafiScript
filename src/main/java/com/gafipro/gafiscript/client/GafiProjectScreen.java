@@ -331,13 +331,8 @@ public final class GafiProjectScreen extends Screen {
             int mouseY,
             float delta
     ) {
-        renderBackground(
-                context,
-                mouseX,
-                mouseY,
-                delta
-        );
-
+        // Screen#render already renders the background. Rendering it here
+        // as well can request Minecraft 1.21.11's blur pass twice in a frame.
         context.drawTextWithShadow(
                 textRenderer,
                 Text.literal(
