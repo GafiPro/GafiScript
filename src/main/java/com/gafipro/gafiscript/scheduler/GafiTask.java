@@ -42,7 +42,9 @@ public final class GafiTask {
 
         if (remainingTicks > 0) {
             remainingTicks--;
-            return false;
+            if (remainingTicks > 0) {
+                return false;
+            }
         }
 
         if (ownerScript == null) {
