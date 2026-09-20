@@ -45,24 +45,44 @@ public final class GafiWorld {
         server.execute(() -> world.setTimeOfDay(time));
     }
 
+    public boolean isDay() {
+        return world.isDay();
+    }
+
+    public boolean isNight() {
+        return world.isNight();
+    }
+
     public GafiEntities entities() {
         return new GafiEntities(world);
     }
 
     public boolean isAir(GafiPosition position) {
-        return world.getBlockState(toBlockPos(position)).isAir();
+        return world.getBlockState(
+                toBlockPos(position)
+        ).isAir();
     }
 
     public String block(GafiPosition position) {
         return Registries.BLOCK.getId(
-                world.getBlockState(toBlockPos(position)).getBlock()
+                world.getBlockState(
+                        toBlockPos(position)
+                ).getBlock()
         ).toString();
     }
 
-    public void setBlock(GafiPosition position, String blockId) {
+    public void setBlock(
+            GafiPosition position,
+            String blockId
+    ) {
         server.execute(() -> {
-            Block block = Registries.BLOCK.get(Identifier.of(blockId));
+            Block block =
+                    Registries.BLOCK.get(
+                            Identifier.of(blockId)
+                    );
+
             if (block == null) return;
+
             world.setBlockState(
                     toBlockPos(position),
                     block.getDefaultState()
@@ -70,9 +90,15 @@ public final class GafiWorld {
         });
     }
 
-    public void breakBlock(GafiPosition position, boolean drop) {
+    public void breakBlock(
+            GafiPosition position,
+            boolean drop
+    ) {
         server.execute(() ->
-                world.breakBlock(toBlockPos(position), drop)
+                world.breakBlock(
+                        toBlockPos(position),
+                        drop
+                )
         );
     }
 
@@ -101,7 +127,10 @@ public final class GafiWorld {
                 entity.getPitch()
         );
 
-        server.execute(() -> world.spawnEntity(entity));
+        server.execute(() ->
+                world.spawnEntity(entity)
+        );
+
         return new GafiEntity(entity);
     }
 
@@ -142,7 +171,12 @@ public final class GafiWorld {
 
         if (sound == null) return;
 
-        playSound(sound, position, volume, pitch);
+        playSound(
+                sound,
+                position,
+                volume,
+                pitch
+        );
     }
 
     public void playSound(
@@ -163,28 +197,208 @@ public final class GafiWorld {
         );
     }
 
+    public int height() {
+        return world.getHeight();
+    }
+
+    public int bottomY() {
+        return world.getBottomY();
+    }
+
+    public GafiPosition spawnPoint() {
+        BlockPos pos =
+                world.getSpawnPos();
+
+        return new GafiPosition(
+                pos.getX(),
+                pos.getY(),
+                pos.getZ()
+        );
+    }
+
+    public void setSpawnPoint(
+            GafiPosition position
+    ) {
+        server.execute(() ->
+                world.setSpawnPos(
+                        toBlockPos(position),
+                        0.0f
+                )
+        );
+    }
+
+    public String biome(
+            GafiPosition position
+    ) {
+        return world.getBiome(
+                        toBlockPos(position)
+                )
+                .getKey()
+                .map(
+                        key -> key.getValue().toString()
+                )
+                .orElse("minecraft:unknown");
+    }
+
+    public void clearWeather() {
+        server.execute(() ->
+                world.setWeather(
+                        0,
+                        0,
+                        false,
+                        false
+                )
+        );
+    }
+
+    public void rain(
+            int durationTicks
+    ) {
+        server.execute(() ->
+                world.setWeather(
+                        0,
+                        Math.max(0, durationTicks),
+                        true,
+                        false
+                )
+        );
+    }
+
+    public void thunder(
+            int durationTicks
+    ) {
+        server.execute(() ->
+                world.setWeather(
+                        0,
+                        Math.max(0, durationTicks),
+                        true,
+                        true
+                )
+        );
+    }
+
+    public boolean gameRule(
+            String name
+    ) {
+        return world.getGameRules()
+                .getBoolean(
+                        net.minecraft.world.GameRules.get(
+                                name
+                        )
+                );
+    }
+
+    public void setGameRule(
+            String name,
+            boolean value
+    ) {
+        server.execute(() ->
+                world.getGameRules()
+                        .get(
+                                net.minecraft.world.GameRules.get(name)
+                        )
+                        .set(
+                                value,
+                                server
+                        )
+        );
+    }
+
+    public double worldBorderSize() {
+        return world.getWorldBorder().getSize();
+    }
+
+    public void setWorldBorderSize(
+            double size
+    ) {
+        server.execute(() ->
+                world.getWorldBorder()
+                        .setSize(
+                                Math.max(1.0, size)
+                        )
+        );
+    }
+
+    public GafiWorld dimension(
+            String dimensionId
+    ) {
+        var key =
+                net.minecraft.registry.RegistryKey.of(
+                        net.minecraft.registry.RegistryKeys.WORLD,
+                        Identifier.of(dimensionId)
+                );
+
+        ServerWorld target =
+                server.getWorld(key);
+
+        if (target == null) {
+            throw new IllegalArgumentException(
+                    "Dimension is not loaded: " +
+                            dimensionId
+            );
+        }
+
+        return new GafiWorld(
+                server,
+                target
+        );
+    }
+
     public void fill(
             GafiPosition from,
             GafiPosition to,
             String blockId
     ) {
-        Block block = Registries.BLOCK.get(
-                Identifier.of(blockId)
-        );
+        Block block =
+                Registries.BLOCK.get(
+                        Identifier.of(blockId)
+                );
 
         if (block == null) return;
 
-        BlockState state = block.getDefaultState();
+        BlockState state =
+                block.getDefaultState();
 
-        BlockPos a = toBlockPos(from);
-        BlockPos b = toBlockPos(to);
+        BlockPos a =
+                toBlockPos(from);
+        BlockPos b =
+                toBlockPos(to);
 
-        int minX = Math.min(a.getX(), b.getX());
-        int maxX = Math.max(a.getX(), b.getX());
-        int minY = Math.min(a.getY(), b.getY());
-        int maxY = Math.max(a.getY(), b.getY());
-        int minZ = Math.min(a.getZ(), b.getZ());
-        int maxZ = Math.max(a.getZ(), b.getZ());
+        int minX =
+                Math.min(
+                        a.getX(),
+                        b.getX()
+                );
+
+        int maxX =
+                Math.max(
+                        a.getX(),
+                        b.getX()
+                );
+
+        int minY =
+                Math.min(
+                        a.getY(),
+                        b.getY()
+                );
+
+        int maxY =
+                Math.max(
+                        a.getY(),
+                        b.getY()
+                );
+
+        int minZ =
+                Math.min(
+                        a.getZ(),
+                        b.getZ()
+                );
+
+        int maxZ =
+                Math.max(
+                        a.getZ(),
+                        b.getZ()
+                );
 
         server.execute(() -> {
             long volume =
@@ -195,16 +409,29 @@ public final class GafiWorld {
             if (volume > 250_000L) {
                 throw new IllegalArgumentException(
                         "Region is too large: " +
-                        volume +
-                        " blocks."
+                                volume +
+                                " blocks."
                 );
             }
 
-            for (int x = minX; x <= maxX; x++) {
-                for (int y = minY; y <= maxY; y++) {
-                    for (int z = minZ; z <= maxZ; z++) {
+            for (int x = minX;
+                 x <= maxX;
+                 x++) {
+
+                for (int y = minY;
+                     y <= maxY;
+                     y++) {
+
+                    for (int z = minZ;
+                         z <= maxZ;
+                         z++) {
+
                         world.setBlockState(
-                                new BlockPos(x, y, z),
+                                new BlockPos(
+                                        x,
+                                        y,
+                                        z
+                                ),
                                 state
                         );
                     }
@@ -219,31 +446,56 @@ public final class GafiWorld {
             String blockId,
             int limit
     ) {
-        Block block = Registries.BLOCK.get(
-                Identifier.of(blockId)
-        );
+        Block block =
+                Registries.BLOCK.get(
+                        Identifier.of(blockId)
+                );
 
         if (block == null) return List.of();
 
-        BlockPos a = toBlockPos(from);
-        BlockPos b = toBlockPos(to);
+        BlockPos a =
+                toBlockPos(from);
+        BlockPos b =
+                toBlockPos(to);
 
-        int minX = Math.min(a.getX(), b.getX());
-        int maxX = Math.max(a.getX(), b.getX());
-        int minY = Math.min(a.getY(), b.getY());
-        int maxY = Math.max(a.getY(), b.getY());
-        int minZ = Math.min(a.getZ(), b.getZ());
-        int maxZ = Math.max(a.getZ(), b.getZ());
+        int minX =
+                Math.min(a.getX(), b.getX());
 
-        List<GafiPosition> result = new ArrayList<>();
+        int maxX =
+                Math.max(a.getX(), b.getX());
+
+        int minY =
+                Math.min(a.getY(), b.getY());
+
+        int maxY =
+                Math.max(a.getY(), b.getY());
+
+        int minZ =
+                Math.min(a.getZ(), b.getZ());
+
+        int maxZ =
+                Math.max(a.getZ(), b.getZ());
+
+        List<GafiPosition> result =
+                new ArrayList<>();
 
         outer:
-        for (int x = minX; x <= maxX; x++) {
-            for (int y = minY; y <= maxY; y++) {
-                for (int z = minZ; z <= maxZ; z++) {
+        for (int x = minX;
+             x <= maxX;
+             x++) {
+
+            for (int y = minY;
+                 y <= maxY;
+                 y++) {
+
+                for (int z = minZ;
+                     z <= maxZ;
+                     z++) {
+
                     if (world.getBlockState(
                             new BlockPos(x, y, z)
                     ).isOf(block)) {
+
                         result.add(
                                 new GafiPosition(
                                         x,
@@ -253,7 +505,10 @@ public final class GafiWorld {
                         );
 
                         if (result.size() >=
-                                Math.max(1, limit)) {
+                                Math.max(
+                                        1,
+                                        limit
+                                )) {
                             break outer;
                         }
                     }
