@@ -67,6 +67,10 @@ public final class Gafi {
         return new GafiGuiFactory();
     }
 
+    public static GafiItems items() {
+        return new GafiItems();
+    }
+
     public static GafiScoreboard scoreboard() {
         return new GafiScoreboard(server());
     }
