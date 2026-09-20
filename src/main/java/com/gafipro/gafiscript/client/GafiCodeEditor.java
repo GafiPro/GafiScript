@@ -87,6 +87,7 @@ public final class GafiCodeEditor {
     private final Deque<State> redoStack = new ArrayDeque<>();
     private int cursorLine;
     private int cursorColumn;
+    private int scrollLine;
     private int selectionAnchor = -1;
     private boolean mouseSelecting;
     private int x;
@@ -131,6 +132,7 @@ public final class GafiCodeEditor {
 
         cursorLine = 0;
         cursorColumn = 0;
+        scrollLine = 0;
         selectionAnchor = -1;
         mouseSelecting = false;
         undoStack.clear();
@@ -385,6 +387,42 @@ public final class GafiCodeEditor {
         return wasSelecting;
     }
 
+    public boolean mouseScrolled(
+            double mouseX,
+            double mouseY,
+            double verticalAmount
+    ) {
+        if (textRenderer == null ||
+                !isInsideEditor(mouseX, mouseY) ||
+                lines.isEmpty()) {
+            return false;
+        }
+
+        int lineHeight = 10;
+        int maxLines = Math.max(1, height / lineHeight);
+        int maxScroll = Math.max(0, lines.size() - maxLines);
+
+        if (verticalAmount == 0.0) {
+            return false;
+        }
+
+        int delta = verticalAmount > 0.0
+                ? -3
+                : 3;
+
+        int oldScroll = scrollLine;
+
+        scrollLine = Math.max(
+                0,
+                Math.min(
+                        maxScroll,
+                        scrollLine + delta
+                )
+        );
+
+        return oldScroll != scrollLine;
+    }
+
     private boolean isInsideEditor(double mouseX, double mouseY) {
         return mouseX >= x &&
                 mouseX <= x + width &&
@@ -585,12 +623,16 @@ public final class GafiCodeEditor {
         int relativeLine =
                 (int) ((mouseY - y) / lineHeight);
 
+        int lineIndex =
+                firstVisibleLine() + relativeLine;
+
         if (relativeLine < 0 ||
-                relativeLine >= lines.size()) {
+                lineIndex < 0 ||
+                lineIndex >= lines.size()) {
             return null;
         }
 
-        String line = lines.get(relativeLine);
+        String line = lines.get(lineIndex);
         int target =
                 Math.max(
                         0,
@@ -836,7 +878,15 @@ public final class GafiCodeEditor {
     private int firstVisibleLine() {
         int lineHeight = 10;
         int maxLines = Math.max(1, height / lineHeight);
-        return Math.max(0, cursorLine - maxLines + 2);
+        int maxScroll = Math.max(0, lines.size() - maxLines);
+
+        return Math.max(
+                0,
+                Math.min(
+                        maxScroll,
+                        scrollLine
+                )
+        );
     }
 
     private void drawSelectionHighlight(
@@ -1585,6 +1635,8 @@ public final class GafiCodeEditor {
                         )
                 );
 
+        ensureCursorVisible();
+
         cursorColumn =
                 Math.max(
                         0,
@@ -1593,6 +1645,8 @@ public final class GafiCodeEditor {
                                 column
                         )
                 );
+
+        ensureCursorVisible();
     }
 
     private void setCursorFromOffset(
@@ -1630,6 +1684,7 @@ public final class GafiCodeEditor {
             if (remaining <= lineLength) {
                 cursorLine = i;
                 cursorColumn = remaining;
+                ensureCursorVisible();
                 return;
             }
 
@@ -1645,6 +1700,28 @@ public final class GafiCodeEditor {
 
         cursorColumn =
                 lines.get(cursorLine).length();
+
+        ensureCursorVisible();
+    }
+
+    private void ensureCursorVisible() {
+        int lineHeight = 10;
+        int maxLines = Math.max(1, height / lineHeight);
+
+        if (cursorLine < scrollLine) {
+            scrollLine = cursorLine;
+            return;
+        }
+
+        int lastVisible = scrollLine + maxLines - 1;
+
+        if (cursorLine > lastVisible) {
+            scrollLine =
+                    Math.max(
+                            0,
+                            cursorLine - maxLines + 1
+                    );
+        }
     }
 
     private int cursorOffset() {
