@@ -1,5 +1,6 @@
 package com.gafipro.gafiscript.api;
 
+import com.gafipro.gafiscript.GafiScriptMod;
 import com.mojang.brigadier.CommandDispatcher;
 import com.mojang.brigadier.builder.LiteralArgumentBuilder;
 import net.minecraft.server.command.ServerCommandSource;
