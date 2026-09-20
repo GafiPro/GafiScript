@@ -1,12 +1,13 @@
 package com.gafipro.gafiscript.runtime;
 
+import com.gafipro.gafiscript.api.Gafi;
 import net.minecraft.server.MinecraftServer;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentHashMap;
 
 public final class ScriptManager {
     private static final Map<String, ActiveScript> ACTIVE = new ConcurrentHashMap<>();
@@ -19,32 +20,53 @@ public final class ScriptManager {
             String source
     ) {
         String safeName = sanitize(scriptName);
-        return CompletableFuture.supplyAsync(() ->
+
+        return Gafi.scheduler().supplyAsync(() ->
                 ScriptCompiler.compile(safeName, source, server)
         ).thenCompose(result -> {
             if (!result.success()) {
-                return CompletableFuture.completedFuture("Compile error: " + result.error());
+                return CompletableFuture.completedFuture(
+                        "Compile error: " + result.error()
+                );
             }
 
-            stop(safeName);
+            CompletableFuture<String> startResult = new CompletableFuture<>();
 
-            ActiveScript active = new ActiveScript(
-                    safeName,
-                    result.script(),
-                    result.outputDirectory()
-            );
-            ACTIVE.put(safeName, active);
+            server.execute(() -> {
+                stop(safeName);
 
-            return CompletableFuture.runAsync(() -> {
+                ActiveScript active = new ActiveScript(
+                        safeName,
+                        result.script(),
+                        result.outputDirectory()
+                );
+                ACTIVE.put(safeName, active);
+
                 try {
                     result.script().start();
+                    startResult.complete("Running " + safeName);
                 } catch (Throwable throwable) {
+                    ACTIVE.remove(safeName);
+                    try {
+                        result.script().close();
+                    } catch (Exception ignored) {
+                    }
+                    deleteDirectory(result.outputDirectory());
+
                     com.gafipro.gafiscript.GafiScriptMod.LOGGER.error(
                             "[GafiScript] Runtime error in " + safeName,
                             throwable
                     );
+                    startResult.complete(
+                            "Runtime error in " + safeName + ": " +
+                            (throwable.getCause() != null
+                                    ? throwable.getCause().getMessage()
+                                    : throwable.getMessage())
+                    );
                 }
-            }).thenApply(ignored -> "Running " + safeName);
+            });
+
+            return startResult;
         });
     }
 
@@ -81,6 +103,10 @@ public final class ScriptManager {
         }
     }
 
+    public static void stopAll() {
+        ACTIVE.keySet().forEach(ScriptManager::stop);
+    }
+
     public static java.util.Set<String> activeScripts() {
         return java.util.Set.copyOf(ACTIVE.keySet());
     }
@@ -93,7 +119,9 @@ public final class ScriptManager {
         try {
             Files.createDirectories(directory);
         } catch (Exception e) {
-            throw new IllegalStateException("Could not create scripts directory.", e);
+            throw new IllegalStateException(
+                    "Could not create scripts directory.", e
+            );
         }
 
         return directory;
@@ -108,13 +136,15 @@ public final class ScriptManager {
 
     private static void deleteDirectory(Path root) {
         if (root == null || !Files.exists(root)) return;
+
         try (var stream = Files.walk(root)) {
-            stream.sorted(java.util.Comparator.reverseOrder()).forEach(path -> {
-                try {
-                    Files.deleteIfExists(path);
-                } catch (Exception ignored) {
-                }
-            });
+            stream.sorted(java.util.Comparator.reverseOrder())
+                    .forEach(path -> {
+                        try {
+                            Files.deleteIfExists(path);
+                        } catch (Exception ignored) {
+                        }
+                    });
         } catch (Exception ignored) {
         }
     }
