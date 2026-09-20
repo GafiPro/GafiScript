@@ -472,6 +472,198 @@ public final class GafiCodeEditor {
         redoStack.clear();
     }
 
+    public boolean goToDefinition() {
+        String prefix = currentIdentifier();
+        if (prefix.isBlank()) {
+            return false;
+        }
+
+        String source = getText();
+
+        java.util.regex.Pattern pattern =
+                java.util.regex.Pattern.compile(
+                        "\\b(?:class|interface|enum|record)\\s+" +
+                        java.util.regex.Pattern.quote(prefix) +
+                        "\\b"
+                );
+
+        var matcher = pattern.matcher(source);
+
+        if (!matcher.find()) {
+            pattern =
+                    java.util.regex.Pattern.compile(
+                            "\\b" +
+                            java.util.regex.Pattern.quote(prefix) +
+                            "\\s*\\("
+                    );
+
+            matcher = pattern.matcher(source);
+        }
+
+        int cursor = cursorOffset();
+
+        int best = -1;
+
+        while (matcher.find()) {
+            if (matcher.start() != cursor) {
+                best = matcher.start();
+                break;
+            }
+        }
+
+        if (best < 0) {
+            matcher = pattern.matcher(source);
+            if (matcher.find()) {
+                best = matcher.start();
+            }
+        }
+
+        if (best < 0) {
+            return false;
+        }
+
+        selectionAnchor = -1;
+        setCursorFromOffset(best, false);
+        return true;
+    }
+
+    public String hoverTextAt(
+            double mouseX,
+            double mouseY
+    ) {
+        if (textRenderer == null ||
+                mouseX < x + 36 ||
+                mouseY < y ||
+                mouseX > x + width ||
+                mouseY > y + height) {
+            return null;
+        }
+
+        int lineHeight = 10;
+
+        int relativeLine =
+                (int) ((mouseY - y) / lineHeight);
+
+        if (relativeLine < 0 ||
+                relativeLine >= lines.size()) {
+            return null;
+        }
+
+        String line = lines.get(relativeLine);
+        int target =
+                Math.max(
+                        0,
+                        (int) (
+                                mouseX -
+                                        x -
+                                        36
+                        )
+                );
+
+        int column = 0;
+
+        while (column < line.length() &&
+                textRenderer.getWidth(
+                        line.substring(
+                                0,
+                                column + 1
+                        )
+                ) <= target) {
+            column++;
+        }
+
+        int start = column;
+
+        while (start > 0 &&
+                Character.isJavaIdentifierPart(
+                        line.charAt(start - 1)
+                )) {
+            start--;
+        }
+
+        int end = column;
+
+        while (end < line.length() &&
+                Character.isJavaIdentifierPart(
+                        line.charAt(end)
+                )) {
+            end++;
+        }
+
+        if (start == end) {
+            return null;
+        }
+
+        String token =
+                line.substring(
+                        start,
+                        end
+                );
+
+        return switch (token) {
+            case "Gafi" ->
+                    "Gafi: main static entry point for the server API.";
+            case "GafiWorld" ->
+                    "GafiWorld: blocks, entities, dimensions, weather, time and regions.";
+            case "GafiPlayer" ->
+                    "GafiPlayer: player state, inventory, effects, messages and teleport.";
+            case "GafiEntity" ->
+                    "GafiEntity: generic server entity wrapper.";
+            case "GafiScheduler" ->
+                    "GafiScheduler: delayed, repeated, sequential and async execution.";
+            case "GafiEvents" ->
+                    "GafiEvents: lifecycle and player interaction listeners.";
+            case "GafiCustomEvents" ->
+                    "GafiCustomEvents: script-defined event channels.";
+            case "GafiItemBuilder" ->
+                    "GafiItemBuilder: Minecraft 1.21.11 data-component item builder.";
+            case "GafiScoreboard" ->
+                    "GafiScoreboard: objectives, scores and display slots.";
+            case "GafiBossBar" ->
+                    "GafiBossBar: server boss bar controls.";
+            case "GafiGui" ->
+                    "GafiGui: server-authoritative custom inventory GUI.";
+            case "GafiDebugger" ->
+                    "GafiDebugger: cooperative source-line breakpoint probes.";
+            default ->
+                    token.startsWith("on")
+                            ? "Event callback: register a listener and keep its returned handle for manual cleanup."
+                            : null;
+        };
+    }
+
+    private String currentIdentifier() {
+        String line = lines.get(cursorLine);
+
+        int start =
+                Math.min(
+                        cursorColumn,
+                        line.length()
+                );
+
+        while (start > 0 &&
+                Character.isJavaIdentifierPart(
+                        line.charAt(start - 1)
+                )) {
+            start--;
+        }
+
+        int end =
+                Math.min(
+                        cursorColumn,
+                        line.length()
+                );
+
+        while (end < line.length() &&
+                Character.isJavaIdentifierPart(
+                        line.charAt(end)
+                )) {
+            end++;
+        }
+
+        return line.substring(start, end);
+    }
+
     public void findNext(
             String query
     ) {
