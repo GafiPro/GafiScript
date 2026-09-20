@@ -205,8 +205,18 @@ public final class GafiProjectScreen extends Screen {
     }
 
     private void saveLocal() {
-        // The project editor intentionally saves the selected file explicitly
-        // through the server-authoritative networking API.
+        if (projectName == null ||
+                projectName.isBlank() ||
+                selectedFile == null ||
+                selectedFile.isBlank()) {
+            return;
+        }
+
+        GafiScriptNetworking.sendProjectSave(
+                projectName,
+                selectedFile,
+                editor.getText()
+        );
     }
 
     private List<String> parseFiles(String source) {
