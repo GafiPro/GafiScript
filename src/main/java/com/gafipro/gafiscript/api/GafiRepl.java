@@ -22,23 +22,44 @@ public final class GafiRepl {
                                 "_"
                         );
 
-        String source =
-                buildSource(code);
-
         return Gafi.scheduler()
-                .supplyAsync(() ->
-                        ScriptCompiler.compile(
-                                "GafiRepl_" +
-                                        safeSession +
-                                        "_" +
-                                        UUID.randomUUID()
-                                                .toString()
-                                                .replace("-", ""),
-                                source,
-                                server
-                        )
-                )
-                .thenApply(result -> {
+                .supplyAsync(() -> {
+                    String id =
+                            "GafiRepl_" +
+                                    safeSession +
+                                    "_" +
+                                    UUID.randomUUID()
+                                            .toString()
+                                            .replace("-", "");
+
+                    ScriptCompiler.CompilationResult result =
+                            ScriptCompiler.compile(
+                                    id,
+                                    buildExpressionSource(code),
+                                    server
+                            );
+
+                    boolean statementMode = false;
+
+                    if (!result.success()) {
+                        statementMode = true;
+                        result =
+                                ScriptCompiler.compile(
+                                        id + "_stmt",
+                                        buildStatementSource(code),
+                                        server
+                                );
+                    }
+
+                    return new EvalResult(
+                            result,
+                            statementMode
+                    );
+                })
+                .thenApply(eval -> {
+                    ScriptCompiler.CompilationResult result =
+                            eval.result();
+
                     if (!result.success()) {
                         return "REPL compile error: " +
                                 result.error();
@@ -49,8 +70,10 @@ public final class GafiRepl {
                                 result.script()
                                         .invoke("eval");
 
-                        return value == null
+                        return eval.statementMode()
                                 ? "ok"
+                                : value == null
+                                ? "null"
                                 : String.valueOf(value);
                     } catch (Throwable throwable) {
                         Throwable cause =
@@ -69,7 +92,7 @@ public final class GafiRepl {
                 });
     }
 
-    private static String buildSource(
+    private static String buildExpressionSource(
             String code
     ) {
         String expression =
@@ -84,33 +107,35 @@ public final class GafiRepl {
         return """
                 public class Repl {
                     public static Object eval() throws Exception {
-                        try {
-                            return (%s);
-                        } catch (Throwable expressionError) {
-                            %s
-                            return null;
-                        }
+                        return (%s);
                     }
                 }
-                """.formatted(
-                expression,
-                statementFallback(expression)
-        );
+                """.formatted(expression);
     }
 
-    private static String statementFallback(
-            String expression
+    private static String buildStatementSource(
+            String code
     ) {
-        String safe =
-                expression.replace(
-                        "*/",
-                        "* /"
-                );
+        String statement =
+                code == null
+                        ? ""
+                        : code.trim()
+                                .replace(
+                                        "*/",
+                                        "* /"
+                                );
 
-        return "com.gafipro.gafiscript.api.Gafi.logInfo(" +
-                "String.valueOf("statement: executed"));" +
-                "/* " +
-                safe +
-                " */";
+        return """
+                public class Repl {
+                    public static Object eval() throws Exception {
+                        %s
+                        return null;
+                    }
+                }
+                """.formatted(statement);
     }
-}
+
+    private record EvalResult(
+            ScriptCompiler.CompilationResult result,
+            boolean statementMode
+    ) {}
