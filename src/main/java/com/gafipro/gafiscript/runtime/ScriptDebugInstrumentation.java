@@ -1,4 +1,3 @@
-
 package com.gafipro.gafiscript.runtime;
 
 import com.github.javaparser.StaticJavaParser;
@@ -71,9 +70,7 @@ public final class ScriptDebugInstrumentation {
                                                     value.block()
                                             )
                             )
-                            .thenComparing(
-                                    Insertion::index
-                            )
+                            .thenComparing(Insertion::index)
                             .reversed()
             );
 
@@ -93,12 +90,10 @@ public final class ScriptDebugInstrumentation {
     private static String quote(String value) {
         String safe = value == null ? "" : value;
 
-        return """ +
+        return "\"" +
                 safe.replace("\\", "\\\\")
-                        .replace(""", "\"")
-                        .replace("\r", "\\r")
-                        .replace("\n", "\\n") +
-                """;
+                        .replace("\"", "\\\"") +
+                "\"";
     }
 
     private record Insertion(
