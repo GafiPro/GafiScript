@@ -6,6 +6,7 @@ import com.gafipro.gafiscript.command.GafiScriptCommands;
 import com.gafipro.gafiscript.net.GafiScriptNetworking;
 import com.gafipro.gafiscript.registry.ModBlockEntities;
 import com.gafipro.gafiscript.registry.ModBlocks;
+import com.gafipro.gafiscript.runtime.ScriptManager;
 import net.fabricmc.api.ModInitializer;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents;
 import net.minecraft.util.Identifier;
@@ -30,7 +31,10 @@ public final class GafiScriptMod implements ModInitializer {
         GafiEvents.INSTANCE.onTick(event -> Gafi.scheduler().tick());
 
         ServerLifecycleEvents.SERVER_STARTED.register(Gafi::attachServer);
-        ServerLifecycleEvents.SERVER_STOPPING.register(Gafi::detachServer);
+        ServerLifecycleEvents.SERVER_STOPPING.register(server -> {
+            ScriptManager.stopAll();
+            Gafi.detachServer(server);
+        });
 
         LOGGER.info("GafiScript initialized.");
     }
