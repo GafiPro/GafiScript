@@ -5,12 +5,18 @@ import java.net.URLClassLoader;
 import java.util.List;
 
 public final class RestrictedClassLoader extends URLClassLoader {
+    /*
+     * Do not block java.lang.invoke.* here. javac uses invokedynamic and
+     * LambdaMetafactory for ordinary Java lambdas and method references.
+     * ScriptSecurity rejects direct source-level access to java.lang.invoke,
+     * while the JVM must still be able to resolve the compiler-generated
+     * lambda machinery at runtime.
+     */
     private static final List<String> BLOCKED_PREFIXES = List.of(
             "java.io.",
             "java.net.",
             "java.nio.file.",
             "java.lang.reflect.",
-            "java.lang.invoke.",
             "sun.",
             "jdk.internal."
     );
