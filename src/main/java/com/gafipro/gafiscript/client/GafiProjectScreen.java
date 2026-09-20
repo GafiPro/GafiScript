@@ -123,8 +123,6 @@ public final class GafiProjectScreen extends Screen {
             String fileList,
             String source
     ) {
-        saveLocal();
-
         projectName = project;
         selectedFile = file;
         files = parseFiles(fileList);
