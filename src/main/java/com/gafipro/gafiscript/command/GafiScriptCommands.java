@@ -82,16 +82,16 @@ public final class GafiScriptCommands {
                                                                             "script"
                                                                     );
 
-                                                            boolean active =
-                                                                    ScriptManager.activeScripts()
-                                                                            .contains(name);
+                                                            var info =
+                                                                    ScriptManager.info(name);
 
                                                             context.getSource().sendFeedback(
                                                                     () -> Text.literal(
-                                                                            name + ": " +
-                                                                            (active
-                                                                                    ? "RUNNING"
-                                                                                    : "STOPPED")
+                                                                            info.name() +
+                                                                            ": " +
+                                                                            info.state() +
+                                                                            " | " +
+                                                                            info.lastMessage()
                                                                     ),
                                                                     false
                                                             );
@@ -231,6 +231,79 @@ public final class GafiScriptCommands {
 
                                                                     return 1;
                                                                 }))))
+                                        .then(literal("watchdog")
+                                                .then(literal("budget")
+                                                        .then(argument("milliseconds", com.mojang.brigadier.arguments.DoubleArgumentType.doubleArg(1.0))
+                                                                .executes(context -> {
+                                                                    double milliseconds =
+                                                                            com.mojang.brigadier.arguments.DoubleArgumentType.getDouble(
+                                                                                    context,
+                                                                                    "milliseconds"
+                                                                            );
+
+                                                                    com.gafipro.gafiscript.api.Gafi.watchdog()
+                                                                            .budgetMillis(milliseconds);
+
+                                                                    context.getSource().sendFeedback(
+                                                                            () -> Text.literal(
+                                                                                    "Watchdog budget: " +
+                                                                                            milliseconds +
+                                                                                            " ms"
+                                                                            ),
+                                                                            false
+                                                                    );
+
+                                                                    return 1;
+                                                                })))
+                                                .then(literal("show")
+                                                        .executes(context -> {
+                                                            context.getSource().sendFeedback(
+                                                                    () -> Text.literal(
+                                                                            String.valueOf(
+                                                                                    com.gafipro.gafiscript.api.Gafi
+                                                                                            .watchdog()
+                                                                                            .snapshotAll()
+                                                                            )
+                                                                    ),
+                                                                    false
+                                                            );
+                                                            return 1;
+                                                        })))
+                                        .then(literal("event")
+                                                .then(argument("name", StringArgumentType.word())
+                                                        .then(argument("payload", StringArgumentType.greedyString())
+                                                                .executes(context -> {
+                                                                    String name =
+                                                                            StringArgumentType.getString(
+                                                                                    context,
+                                                                                    "name"
+                                                                            );
+
+                                                                    String payload =
+                                                                            StringArgumentType.getString(
+                                                                                    context,
+                                                                                    "payload"
+                                                                            );
+
+                                                                    int listeners =
+                                                                            com.gafipro.gafiscript.api.Gafi
+                                                                                    .customEvents()
+                                                                                    .emit(
+                                                                                            name,
+                                                                                            payload
+                                                                                    );
+
+                                                                    context.getSource().sendFeedback(
+                                                                            () -> Text.literal(
+                                                                                    "Custom event emitted to " +
+                                                                                            listeners +
+                                                                                            " listener(s)."
+                                                                            ),
+                                                                            false
+                                                                    );
+
+                                                                    return 1;
+                                                                })))
                                         .then(literal("project")
                                                 .then(literal("list")
                                                         .executes(context -> {
@@ -383,7 +456,7 @@ public final class GafiScriptCommands {
     private static void sendHelp(ServerCommandSource source) {
         source.sendFeedback(
                 () -> Text.literal(
-                        "/gafiscript help | list | run <script> | stop <script> | info <script> | project <list|create|run|reload|edit|export|import> | repl <code> | debug <enable|disable|break|clear|hits>"
+                        "/gafiscript help | list | run <script> | stop <script> | info <script> | project <list|create|run|reload|edit|export|import> | repl <code> | debug <enable|disable|break|clear|hits> | watchdog <budget|show> | event <name> <payload>"
                 ),
                 false
         );
