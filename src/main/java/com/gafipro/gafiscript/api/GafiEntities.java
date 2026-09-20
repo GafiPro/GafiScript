@@ -39,8 +39,11 @@ public final class GafiEntities {
     }
 
     public List<GafiEntity> all() {
-        return world.iterateEntities()
-                .stream()
+        return java.util.stream.StreamSupport
+                .stream(
+                        world.iterateEntities().spliterator(),
+                        false
+                )
                 .map(GafiEntity::new)
                 .toList();
     }
