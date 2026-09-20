@@ -227,7 +227,7 @@ public class BoatRace {
 
         scheduler().delaySeconds(
                 3,
-                BoatRaceComplete::reset
+                BoatRace::reset
         );
     }
 
