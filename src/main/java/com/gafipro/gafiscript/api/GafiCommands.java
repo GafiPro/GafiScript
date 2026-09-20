@@ -13,7 +13,7 @@ import static net.minecraft.server.command.CommandManager.literal;
 
 public final class GafiCommands {
     private final List<GafiCommandHandle> handles =
-            java.util.concurrent.CopyOnWriteArrayList<>();
+            new java.util.concurrent.CopyOnWriteArrayList<>();
 
     public GafiCommandHandle register(
             String name,
