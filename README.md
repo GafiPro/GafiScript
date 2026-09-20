@@ -1,18 +1,71 @@
 # GafiScript
 
-GafiScript is a Java-first scripting and automation mod for Minecraft Java.
+GafiScript is a Java-first scripting and automation platform for Minecraft Java 1.21.11 + Fabric.
 
-The goal is to replace large command-block systems with normal Java code plus a documented Minecraft API.
+The script language is real Java 21. The platform adds a Minecraft API, runtime compiler, scheduler, event system, persistent storage, project support and an integrated editor.
 
-## Current platform
+## Platform
 
-Target:
-- Minecraft 1.21.11
-- Java 21
-- Fabric
-- Fabric Loom remap
+### Runtime
+- Java 21 compilation at runtime
+- single-file scripts
+- multi-file projects
+- project manifests and local dependencies
+- JAR dependencies in project libs/
+- compile diagnostics
+- lifecycle states
+- safe cleanup on stop/reload
+- REPL
+- cooperative debugger probes
 
-The project intentionally uses real Java. It does not introduce a second programming language.
+### Minecraft API
+- players
+- entities
+- inventories
+- blocks and regions
+- world time and weather
+- dimensions
+- biomes
+- gamerules
+- spawn points
+- world border
+- particles
+- sounds
+- effects
+- boss bars
+- scoreboards
+- titles/action bars/chat
+- item data components
+- GUI inventories
+- raycasting
+- commands
+- custom events
+- persistent storage/config/database
+
+### Scheduler
+- next tick
+- delayed tasks
+- repeated tasks
+- task groups
+- sequences
+- async virtual threads
+- per-script ownership
+- watchdog timing
+
+### IDE
+The in-game editor supports:
+- Java source editing
+- syntax highlighting
+- completion
+- selection
+- copy/cut/paste
+- undo/redo
+- find/replace
+- formatting
+- diagnostics
+- hover documentation
+- go-to-definition
+- multi-file project editing
 
 ## First script
 
@@ -24,102 +77,83 @@ The project intentionally uses real Java. It does not introduce a second program
         }
     }
 
-## Runtime APIs currently available
+## Project layout
 
-    Gafi.broadcast("Hello");
+    gafiscript/
+      projects/
+        Example/
+          manifest.json
+          src/
+            Main.java
+          libs/
 
-    Gafi.world().setBlock(
-        GafiPosition.of(10, 64, 10),
-        "minecraft:redstone_block"
-    );
-
-    Gafi.scheduler().delaySeconds(3, () -> {
-        Gafi.broadcast("3 seconds later");
-    });
-
-    Gafi.events().onPlayerJoin(player -> {
-        player.sendMessage("Welcome!");
-    });
-
-## In-game workflow
-
-1. Place a GafiScript Block.
-2. Right-click it as an operator.
-3. Edit Java in the integrated editor.
-4. Press Ctrl+S to save.
-5. Press F5 to compile and run.
-6. Use Ctrl+Space for API completion.
-
-## Server command
+## Commands
 
     /gafiscript help
     /gafiscript list
     /gafiscript run <script>
     /gafiscript stop <script>
     /gafiscript info <script>
-
-File scripts are loaded from the server run directory under:
-
-    gafiscript/scripts/
+    /gafiscript repl <code>
+    /gafiscript debug enable
+    /gafiscript debug break <script> <line>
+    /gafiscript debug hits <script>
+    /gafiscript project list
+    /gafiscript project create <project>
+    /gafiscript project edit <project>
+    /gafiscript project run <project>
+    /gafiscript project reload <project>
+    /gafiscript project export <project>
+    /gafiscript project import <archive>
 
 ## Security
 
-GafiScript currently includes source validation and a restricted class loader. This is defensive protection, not a formally verified sandbox. Do not execute hostile untrusted scripts on a public server and assume they are completely isolated.
+GafiScript uses multiple defensive layers: source validation, Java compilation without annotation processing, generated-bytecode inspection, a restricted classloader, permission checks and lifecycle cleanup.
 
-The initial editor and administration command use operator permission level 2.
-
-## Documentation
-
-Start here:
-
-- docs/FOR_JAVA_DEVELOPERS.md
-- docs/FUNCTIONALITY.md
-- docs/GAFISCRIPT_EXTENSIONS.md
-- docs/SCHEDULER.md
-- docs/THREADING.md
-- docs/SECURITY.md
-- docs/EDITOR.md
-- docs/FROM_COMMAND_BLOCKS.md
-- docs/ARCHITECTURE.md
-- docs/API_INDEX.md
-- docs/LIMITATIONS.md
-
-## Examples
-
-The examples directory contains scripts for:
-- Hello World;
-- countdowns;
-- player join;
-- block interaction;
-- area cleaning;
-- boat race automation.
+This is not a formally verified JVM sandbox. Do not treat arbitrary hostile code as safe to execute inside a Minecraft server process.
 
 ## Build
 
-The intended build command is:
-
     ./gradlew clean build --no-daemon --max-workers=1
 
-GitHub Actions also validates the project with Java 21 and Gradle 9.6.1.
+Windows:
 
-## Project philosophy
+    gradlew.bat clean build --no-daemon --max-workers=1
 
-GafiScript should feel like:
+## Documentation
 
-    Java
-    +
-    Minecraft API
-    +
-    IDE
-    +
-    Scheduler
-    +
-    Events
-    +
-    Security
-    +
-    Documentation
+Core:
+- docs/FOR_JAVA_DEVELOPERS.md
+- docs/FUNCTIONALITY.md
+- docs/JAVA_VS_GAFISCRIPT.md
+- docs/ARCHITECTURE.md
+- docs/API_INDEX.md
+- docs/MENTAL_MODEL.md
 
-not a new pseudo-language.
+Runtime:
+- docs/SCHEDULER.md
+- docs/THREADING.md
+- docs/STORAGE.md
+- docs/CONFIG.md
+- docs/PROJECTS.md
+- docs/COMMANDS.md
+- docs/REPL.md
+- docs/DEBUGGER.md
+- docs/PROFILING.md
+- docs/PERMISSIONS.md
 
-Implemented functionality is documented as implemented. Future features remain explicitly marked as planned so the repository never pretends a feature exists when it does not.
+IDE:
+- docs/EDITOR.md
+- docs/GUI.md
+
+Security:
+- docs/SECURITY.md
+- docs/SAFE_CODING.md
+- docs/ERRORS.md
+
+Guides:
+- docs/FROM_COMMAND_BLOCKS.md
+- docs/FOR_MOD_DEVELOPERS.md
+- docs/ADVANCED.md
+
+Examples are stored under examples/.
