@@ -73,6 +73,6 @@ class GafiTaskTest {
     ) {
         boolean completed = task.tick();
         assertFalse(completed, "repeating task must remain scheduled");
-        assertEquals(calls.get(), expectedIncrement, "unexpected number of task executions");
+        assertEquals(expectedIncrement, calls.get(), "unexpected number of task executions");
     }
 }
