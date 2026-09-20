@@ -1,7 +1,14 @@
+
 package com.gafipro.gafiscript.command;
 
+import com.gafipro.gafiscript.api.Gafi;
+import com.gafipro.gafiscript.api.GafiDebugger;
+import com.gafipro.gafiscript.api.GafiRepl;
 import com.gafipro.gafiscript.runtime.ScriptManager;
+import com.mojang.brigadier.arguments.DoubleArgumentType;
+import com.mojang.brigadier.arguments.IntegerArgumentType;
 import com.mojang.brigadier.arguments.StringArgumentType;
+import com.mojang.brigadier.builder.LiteralArgumentBuilder;
 import net.fabricmc.fabric.api.command.v2.CommandRegistrationCallback;
 import net.minecraft.command.DefaultPermissions;
 import net.minecraft.server.command.ServerCommandSource;
@@ -15,442 +22,550 @@ public final class GafiScriptCommands {
 
     public static void register() {
         CommandRegistrationCallback.EVENT.register(
-                (dispatcher, registryAccess, environment) ->
-                        dispatcher.register(
-                                literal("gafiscript")
-                                        .requires(source ->
-                                                source.getPermissions()
-                                                        .hasPermission(DefaultPermissions.GAMEMASTERS))
-                                        .then(literal("help").executes(context -> {
-                                            sendHelp(context.getSource());
-                                            return 1;
-                                        }))
-                                        .then(literal("list").executes(context -> {
+                (dispatcher, registryAccess, environment) -> {
+                    LiteralArgumentBuilder<ServerCommandSource> root =
+                            literal("gafiscript")
+                                    .requires(source ->
+                                            source.getPermissions()
+                                                    .hasPermission(
+                                                            DefaultPermissions.GAMEMASTERS
+                                                    )
+                                    );
+
+                    root.then(
+                            literal("help")
+                                    .executes(context -> {
+                                        sendHelp(context.getSource());
+                                        return 1;
+                                    })
+                    );
+
+                    root.then(
+                            literal("list")
+                                    .executes(context -> {
+                                        context.getSource().sendFeedback(
+                                                () -> Text.literal(
+                                                        "Active scripts: " +
+                                                                ScriptManager.activeScripts()
+                                                ),
+                                                false
+                                        );
+                                        return 1;
+                                    })
+                    );
+
+                    root.then(
+                            literal("run")
+                                    .then(
+                                            argument(
+                                                    "script",
+                                                    StringArgumentType.word()
+                                            ).executes(context -> {
+                                                String name =
+                                                        StringArgumentType.getString(
+                                                                context,
+                                                                "script"
+                                                        );
+
+                                                context.getSource().sendFeedback(
+                                                        () -> Text.literal(
+                                                                ScriptManager.reloadFromFile(
+                                                                        context.getSource().getServer(),
+                                                                        name
+                                                                )
+                                                        ),
+                                                        false
+                                                );
+
+                                                return 1;
+                                            })
+                                    )
+                    );
+
+                    root.then(
+                            literal("stop")
+                                    .then(
+                                            argument(
+                                                    "script",
+                                                    StringArgumentType.word()
+                                            ).executes(context -> {
+                                                String name =
+                                                        StringArgumentType.getString(
+                                                                context,
+                                                                "script"
+                                                        );
+
+                                                context.getSource().sendFeedback(
+                                                        () -> Text.literal(
+                                                                ScriptManager.stop(name)
+                                                        ),
+                                                        false
+                                                );
+
+                                                return 1;
+                                            })
+                                    )
+                    );
+
+                    root.then(
+                            literal("info")
+                                    .then(
+                                            argument(
+                                                    "script",
+                                                    StringArgumentType.word()
+                                            ).executes(context -> {
+                                                String name =
+                                                        StringArgumentType.getString(
+                                                                context,
+                                                                "script"
+                                                        );
+
+                                                var info =
+                                                        ScriptManager.info(name);
+
+                                                context.getSource().sendFeedback(
+                                                        () -> Text.literal(
+                                                                info.name() +
+                                                                        ": " +
+                                                                        info.state() +
+                                                                        " | " +
+                                                                        info.lastMessage()
+                                                        ),
+                                                        false
+                                                );
+
+                                                return 1;
+                                            })
+                                    )
+                    );
+
+                    root.then(replCommand());
+                    root.then(debugCommand());
+                    root.then(watchdogCommand());
+                    root.then(customEventCommand());
+                    root.then(projectCommand());
+
+                    dispatcher.register(root);
+                }
+        );
+    }
+
+    private static LiteralArgumentBuilder<ServerCommandSource> replCommand() {
+        return literal("repl")
+                .then(
+                        argument(
+                                "code",
+                                StringArgumentType.greedyString()
+                        ).executes(context -> {
+                            ServerCommandSource source =
+                                    context.getSource();
+
+                            String code =
+                                    StringArgumentType.getString(
+                                            context,
+                                            "code"
+                                    );
+
+                            GafiRepl.evaluate(
+                                            source.getServer(),
+                                            source.getName(),
+                                            code
+                                    )
+                                    .thenAccept(result ->
+                                            source.getServer().execute(
+                                                    () -> source.sendFeedback(
+                                                            () -> Text.literal(
+                                                                    "[REPL] " +
+                                                                            result
+                                                            ),
+                                                            false
+                                                    )
+                                            )
+                                    );
+
+                            source.sendFeedback(
+                                    () -> Text.literal(
+                                            "REPL evaluation scheduled."
+                                    ),
+                                    false
+                            );
+
+                            return 1;
+                        })
+                );
+    }
+
+    private static LiteralArgumentBuilder<ServerCommandSource> debugCommand() {
+        return literal("debug")
+                .then(
+                        literal("enable")
+                                .executes(context -> {
+                                    GafiDebugger.enable();
+                                    context.getSource().sendFeedback(
+                                            () -> Text.literal(
+                                                    "Debugger enabled."
+                                            ),
+                                            false
+                                    );
+                                    return 1;
+                                })
+                )
+                .then(
+                        literal("disable")
+                                .executes(context -> {
+                                    GafiDebugger.disable();
+                                    context.getSource().sendFeedback(
+                                            () -> Text.literal(
+                                                    "Debugger disabled."
+                                            ),
+                                            false
+                                    );
+                                    return 1;
+                                })
+                )
+                .then(
+                        literal("break")
+                                .then(
+                                        argument(
+                                                "script",
+                                                StringArgumentType.word()
+                                        ).then(
+                                                argument(
+                                                        "line",
+                                                        IntegerArgumentType.integer(1)
+                                                ).executes(context -> {
+                                                    String script =
+                                                            StringArgumentType.getString(
+                                                                    context,
+                                                                    "script"
+                                                            );
+
+                                                    int line =
+                                                            IntegerArgumentType.getInteger(
+                                                                    context,
+                                                                    "line"
+                                                            );
+
+                                                    GafiDebugger.breakpoint(
+                                                            script,
+                                                            line
+                                                    );
+
+                                                    return 1;
+                                                })
+                                        )
+                                )
+                )
+                .then(
+                        literal("clear")
+                                .then(
+                                        argument(
+                                                "script",
+                                                StringArgumentType.word()
+                                        ).then(
+                                                argument(
+                                                        "line",
+                                                        IntegerArgumentType.integer(1)
+                                                ).executes(context -> {
+                                                    String script =
+                                                            StringArgumentType.getString(
+                                                                    context,
+                                                                    "script"
+                                                            );
+
+                                                    int line =
+                                                            IntegerArgumentType.getInteger(
+                                                                    context,
+                                                                    "line"
+                                                            );
+
+                                                    GafiDebugger.clearBreakpoint(
+                                                            script,
+                                                            line
+                                                    );
+
+                                                    return 1;
+                                                })
+                                        )
+                                )
+                )
+                .then(
+                        literal("hits")
+                                .then(
+                                        argument(
+                                                "script",
+                                                StringArgumentType.word()
+                                        ).executes(context -> {
+                                            String script =
+                                                    StringArgumentType.getString(
+                                                            context,
+                                                            "script"
+                                                    );
+
                                             context.getSource().sendFeedback(
                                                     () -> Text.literal(
-                                                            "Active scripts: " +
-                                                            ScriptManager.activeScripts()
+                                                            "Debugger hits: " +
+                                                                    GafiDebugger.recentHits(script)
                                                     ),
                                                     false
                                             );
+
                                             return 1;
-                                        }))
-                                        .then(literal("run")
-                                                .then(argument("script", StringArgumentType.word())
-                                                        .executes(context -> {
-                                                            String name =
-                                                                    StringArgumentType.getString(
-                                                                            context,
-                                                                            "script"
-                                                                    );
+                                        })
+                                )
+                );
+    }
 
-                                                            String result =
-                                                                    ScriptManager.reloadFromFile(
-                                                                            context.getSource().getServer(),
-                                                                            name
-                                                                    );
+    private static LiteralArgumentBuilder<ServerCommandSource> watchdogCommand() {
+        return literal("watchdog")
+                .then(
+                        literal("budget")
+                                .then(
+                                        argument(
+                                                "milliseconds",
+                                                DoubleArgumentType.doubleArg(1.0)
+                                        ).executes(context -> {
+                                            double value =
+                                                    DoubleArgumentType.getDouble(
+                                                            context,
+                                                            "milliseconds"
+                                                    );
 
-                                                            context.getSource().sendFeedback(
-                                                                    () -> Text.literal(result),
-                                                                    false
-                                                            );
-                                                            return 1;
-                                                        })))
-                                        .then(literal("stop")
-                                                .then(argument("script", StringArgumentType.word())
-                                                        .executes(context -> {
-                                                            String name =
-                                                                    StringArgumentType.getString(
-                                                                            context,
-                                                                            "script"
-                                                                    );
+                                            Gafi.watchdog()
+                                                    .budgetMillis(value);
 
-                                                            context.getSource().sendFeedback(
-                                                                    () -> Text.literal(
-                                                                            ScriptManager.stop(name)
-                                                                    ),
-                                                                    false
-                                                            );
-                                                            return 1;
-                                                        })))
-                                        .then(literal("info")
-                                                .then(argument("script", StringArgumentType.word())
-                                                        .executes(context -> {
-                                                            String name =
-                                                                    StringArgumentType.getString(
-                                                                            context,
-                                                                            "script"
-                                                                    );
+                                            return 1;
+                                        })
+                                )
+                )
+                .then(
+                        literal("show")
+                                .executes(context -> {
+                                    context.getSource().sendFeedback(
+                                            () -> Text.literal(
+                                                    String.valueOf(
+                                                            Gafi.watchdog()
+                                                                    .snapshotAll()
+                                                    )
+                                            ),
+                                            false
+                                    );
+                                    return 1;
+                                })
+                );
+    }
 
-                                                            var info =
-                                                                    ScriptManager.info(name);
+    private static LiteralArgumentBuilder<ServerCommandSource> customEventCommand() {
+        return literal("event")
+                .then(
+                        argument(
+                                "name",
+                                StringArgumentType.word()
+                        ).then(
+                                argument(
+                                        "payload",
+                                        StringArgumentType.greedyString()
+                                ).executes(context -> {
+                                    String name =
+                                            StringArgumentType.getString(
+                                                    context,
+                                                    "name"
+                                            );
 
-                                                            context.getSource().sendFeedback(
-                                                                    () -> Text.literal(
-                                                                            info.name() +
-                                                                            ": " +
-                                                                            info.state() +
-                                                                            " | " +
-                                                                            info.lastMessage()
-                                                                    ),
-                                                                    false
-                                                            );
-                                                            return 1;
-                                                        })))
-                                        .then(literal("repl")
-                                                .then(argument("code", StringArgumentType.greedyString())
-                                                        .executes(context -> {
-                                                            String code =
-                                                                    StringArgumentType.getString(
-                                                                            context,
-                                                                            "code"
-                                                                    );
+                                    String payload =
+                                            StringArgumentType.getString(
+                                                    context,
+                                                    "payload"
+                                            );
 
-                                                            var source =
-                                                                    context.getSource();
+                                    int count =
+                                            Gafi.customEvents()
+                                                    .emit(
+                                                            name,
+                                                            payload
+                                                    );
 
-                                                            com.gafipro.gafiscript.api.GafiRepl
-                                                                    .evaluate(
-                                                                            source.getServer(),
-                                                                            source.getName(),
-                                                                            code
-                                                                    )
-                                                                    .thenAccept(result ->
-                                                                            source.getServer().execute(() ->
-                                                                                    source.sendFeedback(
-                                                                                            () -> Text.literal(
-                                                                                                    "[REPL] " + result
-                                                                                            ),
-                                                                                            false
-                                                                                    )
-                                                                            )
-                                                                    );
+                                    context.getSource().sendFeedback(
+                                            () -> Text.literal(
+                                                    "Custom event emitted to " +
+                                                            count +
+                                                            " listener(s)."
+                                            ),
+                                            false
+                                    );
 
-                                                            source.sendFeedback(
-                                                                    () -> Text.literal("REPL evaluation scheduled."),
-                                                                    false
-                                                            );
+                                    return 1;
+                                })
+                        )
+                );
+    }
 
-                                                            return 1;
-                                                        })))
-                                        .then(literal("debug")
-                                                .then(literal("enable")
-                                                        .executes(context -> {
-                                                            com.gafipro.gafiscript.api.GafiDebugger.enable();
-                                                            context.getSource().sendFeedback(
-                                                                    () -> Text.literal("Debugger enabled."),
-                                                                    false
-                                                            );
-                                                            return 1;
-                                                        }))
-                                                .then(literal("disable")
-                                                        .executes(context -> {
-                                                            com.gafipro.gafiscript.api.GafiDebugger.disable();
-                                                            context.getSource().sendFeedback(
-                                                                    () -> Text.literal("Debugger disabled."),
-                                                                    false
-                                                            );
-                                                            return 1;
-                                                        }))
-                                                .then(literal("break")
-                                                        .then(argument("script", StringArgumentType.word())
-                                                                .then(argument("line", com.mojang.brigadier.arguments.IntegerArgumentType.integer(1))
-                                                                        .executes(context -> {
-                                                                            String script =
-                                                                                    StringArgumentType.getString(
-                                                                                            context,
-                                                                                            "script"
-                                                                                    );
+    private static LiteralArgumentBuilder<ServerCommandSource> projectCommand() {
+        LiteralArgumentBuilder<ServerCommandSource> project =
+                literal("project");
 
-                                                                            int line =
-                                                                                    com.mojang.brigadier.arguments.IntegerArgumentType.getInteger(
-                                                                                            context,
-                                                                                            "line"
-                                                                                    );
+        project.then(
+                literal("list")
+                        .executes(context -> {
+                            context.getSource().sendFeedback(
+                                    () -> Text.literal(
+                                            "Projects: " +
+                                                    ScriptManager.projects(
+                                                            context.getSource().getServer()
+                                                    )
+                                    ),
+                                    false
+                            );
+                            return 1;
+                        })
+        );
 
-                                                                            com.gafipro.gafiscript.api.GafiDebugger.breakpoint(
-                                                                                    script,
-                                                                                    line
-                                                                            );
-
-                                                                            context.getSource().sendFeedback(
-                                                                                    () -> Text.literal(
-                                                                                            "Breakpoint set: " +
-                                                                                                    script +
-                                                                                                    ":" +
-                                                                                                    line
-                                                                                    ),
-                                                                                    false
-                                                                            );
-
-                                                                            return 1;
-                                                                        }))))
-                                                .then(literal("clear")
-                                                        .then(argument("script", StringArgumentType.word())
-                                                                .then(argument("line", com.mojang.brigadier.arguments.IntegerArgumentType.integer(1))
-                                                                        .executes(context -> {
-                                                                            String script =
-                                                                                    StringArgumentType.getString(
-                                                                                            context,
-                                                                                            "script"
-                                                                                    );
-
-                                                                            int line =
-                                                                                    com.mojang.brigadier.arguments.IntegerArgumentType.getInteger(
-                                                                                            context,
-                                                                                            "line"
-                                                                                    );
-
-                                                                            com.gafipro.gafiscript.api.GafiDebugger.clearBreakpoint(
-                                                                                    script,
-                                                                                    line
-                                                                            );
-
-                                                                            return 1;
-                                                                        }))))
-                                                .then(literal("hits")
-                                                        .then(argument("script", StringArgumentType.word())
-                                                                .executes(context -> {
-                                                                    String script =
-                                                                            StringArgumentType.getString(
-                                                                                    context,
-                                                                                    "script"
-                                                                            );
-
-                                                                    var hits =
-                                                                            com.gafipro.gafiscript.api.GafiDebugger.recentHits(
-                                                                                    script
-                                                                            );
-
-                                                                    context.getSource().sendFeedback(
-                                                                            () -> Text.literal(
-                                                                                    "Debugger hits: " + hits
-                                                                            ),
-                                                                            false
-                                                                    );
-
-                                                                    return 1;
-                                                                }))))
-                                        .then(literal("watchdog")
-                                                .then(literal("budget")
-                                                        .then(argument("milliseconds", com.mojang.brigadier.arguments.DoubleArgumentType.doubleArg(1.0))
-                                                                .executes(context -> {
-                                                                    double milliseconds =
-                                                                            com.mojang.brigadier.arguments.DoubleArgumentType.getDouble(
-                                                                                    context,
-                                                                                    "milliseconds"
-                                                                            );
-
-                                                                    com.gafipro.gafiscript.api.Gafi.watchdog()
-                                                                            .budgetMillis(milliseconds);
-
-                                                                    context.getSource().sendFeedback(
-                                                                            () -> Text.literal(
-                                                                                    "Watchdog budget: " +
-                                                                                            milliseconds +
-                                                                                            " ms"
-                                                                            ),
-                                                                            false
-                                                                    );
-
-                                                                    return 1;
-                                                                })))
-                                                .then(literal("show")
-                                                        .executes(context -> {
-                                                            context.getSource().sendFeedback(
-                                                                    () -> Text.literal(
-                                                                            String.valueOf(
-                                                                                    com.gafipro.gafiscript.api.Gafi
-                                                                                            .watchdog()
-                                                                                            .snapshotAll()
-                                                                            )
-                                                                    ),
-                                                                    false
-                                                            );
-                                                            return 1;
-                                                        })))
-                                        .then(literal("event")
-                                                .then(argument("name", StringArgumentType.word())
-                                                        .then(argument("payload", StringArgumentType.greedyString())
-                                                                .executes(context -> {
-                                                                    String name =
-                                                                            StringArgumentType.getString(
-                                                                                    context,
-                                                                                    "name"
-                                                                            );
-
-                                                                    String payload =
-                                                                            StringArgumentType.getString(
-                                                                                    context,
-                                                                                    "payload"
-                                                                            );
-
-                                                                    int listeners =
-                                                                            com.gafipro.gafiscript.api.Gafi
-                                                                                    .customEvents()
-                                                                                    .emit(
-                                                                                            name,
-                                                                                            payload
-                                                                                    );
-
-                                                                    context.getSource().sendFeedback(
-                                                                            () -> Text.literal(
-                                                                                    "Custom event emitted to " +
-                                                                                            listeners +
-                                                                                            " listener(s)."
-                                                                            ),
-                                                                            false
-                                                                    );
-
-                                                                    return 1;
-                                                                })))
-                                        .then(literal("project")
-                                                .then(literal("list")
-                                                        .executes(context -> {
-                                                            var projects =
-                                                                    ScriptManager.projects(
-                                                                            context.getSource().getServer()
-                                                                    );
-
-                                                            context.getSource().sendFeedback(
-                                                                    () -> Text.literal(
-                                                                            "Projects: " + projects
-                                                                    ),
-                                                                    false
-                                                            );
-                                                            return 1;
-                                                        }))
-                                                .then(literal("create")
-                                                        .then(argument("project", StringArgumentType.word())
-                                                                .executes(context -> {
-                                                                    String name =
-                                                                            StringArgumentType.getString(
-                                                                                    context,
-                                                                                    "project"
-                                                                            );
-
-                                                                    String result =
-                                                                            ScriptManager.createProject(
-                                                                                    context.getSource().getServer(),
-                                                                                    name
-                                                                            );
-
-                                                                    context.getSource().sendFeedback(
-                                                                            () -> Text.literal(result),
-                                                                            false
-                                                                    );
-                                                                    return 1;
-                                                                })))
-                                                .then(literal("run")
-                                                        .then(argument("project", StringArgumentType.word())
-                                                                .executes(context -> {
-                                                                    String name =
-                                                                            StringArgumentType.getString(
-                                                                                    context,
-                                                                                    "project"
-                                                                            );
-
-                                                                    ScriptManager.runProjectAsync(
-                                                                            context.getSource().getServer(),
-                                                                            name
-                                                                    );
-
-                                                                    context.getSource().sendFeedback(
-                                                                            () -> Text.literal(
-                                                                                    "Project run scheduled: " + name
-                                                                            ),
-                                                                            false
-                                                                    );
-                                                                    return 1;
-                                                                })))
-                                                .then(literal("reload")
-                                                        .then(argument("project", StringArgumentType.word())
-                                                                .executes(context -> {
-                                                                    String name =
-                                                                            StringArgumentType.getString(
-                                                                                    context,
-                                                                                    "project"
-                                                                            );
-
-                                                                    String result =
-                                                                            ScriptManager.reloadProject(
-                                                                                    context.getSource().getServer(),
-                                                                                    name
-                                                                            );
-
-                                                                    context.getSource().sendFeedback(
-                                                                            () -> Text.literal(result),
-                                                                            false
-                                                                    );
-                                                                    return 1;
-                                                                })))
-                                                .then(literal("edit")
-                                                        .then(argument("project", StringArgumentType.word())
-                                                                .executes(context -> {
-                                                                    String name =
-                                                                            StringArgumentType.getString(
-                                                                                    context,
-                                                                                    "project"
-                                                                            );
-
-                                                                    var player =
-                                                                            context.getSource().getPlayer();
-
-                                                                    if (player != null) {
-                                                                        com.gafipro.gafiscript.net.GafiScriptNetworking
-                                                                                .openProjectFromServer(
-                                                                                        player,
-                                                                                        name
-                                                                                );
-                                                                    }
-
-                                                                    return 1;
-                                                                })))
-                                                .then(literal("export")
-                                                        .then(argument("project", StringArgumentType.word())
-                                                                .executes(context -> {
-                                                                    String name =
-                                                                            StringArgumentType.getString(
-                                                                                    context,
-                                                                                    "project"
-                                                                            );
-
-                                                                    String result =
-                                                                            ScriptManager.exportProject(
-                                                                                    context.getSource().getServer(),
-                                                                                    name
-                                                                            );
-
-                                                                    context.getSource().sendFeedback(
-                                                                            () -> Text.literal(result),
-                                                                            false
-                                                                    );
-                                                                    return 1;
-                                                                })))
-                                                .then(literal("import")
-                                                        .then(argument("archive", StringArgumentType.string())
-                                                                .executes(context -> {
-                                                                    String archive =
-                                                                            StringArgumentType.getString(
-                                                                                    context,
-                                                                                    "archive"
-                                                                            );
-
-                                                                    String result =
-                                                                            ScriptManager.importProject(
-                                                                                    context.getSource().getServer(),
-                                                                                    archive
-                                                                            );
-
-                                                                    context.getSource().sendFeedback(
-                                                                            () -> Text.literal(result),
-                                                                            false
-                                                                    );
-                                                                    return 1;
-                                                                })))
-                                        )
+        project.then(
+                literal("create")
+                        .then(
+                                argument(
+                                        "project",
+                                        StringArgumentType.word()
+                                ).executes(context -> {
+                                    context.getSource().sendFeedback(
+                                            () -> Text.literal(
+                                                    ScriptManager.createProject(
+                                                            context.getSource().getServer(),
+                                                            StringArgumentType.getString(
+                                                                    context,
+                                                                    "project"
+                                                            )
+                                                    )
+                                            ),
+                                            false
+                                    );
+                                    return 1;
+                                })
                         )
         );
+
+        project.then(
+                literal("run")
+                        .then(
+                                argument(
+                                        "project",
+                                        StringArgumentType.word()
+                                ).executes(context -> {
+                                    String name =
+                                            StringArgumentType.getString(
+                                                    context,
+                                                    "project"
+                                            );
+
+                                    ScriptManager.runProjectAsync(
+                                            context.getSource().getServer(),
+                                            name
+                                    );
+
+                                    return 1;
+                                })
+                        )
+        );
+
+        project.then(
+                literal("reload")
+                        .then(
+                                argument(
+                                        "project",
+                                        StringArgumentType.word()
+                                ).executes(context -> {
+                                    context.getSource().sendFeedback(
+                                            () -> Text.literal(
+                                                    ScriptManager.reloadProject(
+                                                            context.getSource().getServer(),
+                                                            StringArgumentType.getString(
+                                                                    context,
+                                                                    "project"
+                                                            )
+                                                    )
+                                            ),
+                                            false
+                                    );
+                                    return 1;
+                                })
+                        )
+        );
+
+        project.then(
+                literal("edit")
+                        .then(
+                                argument(
+                                        "project",
+                                        StringArgumentType.word()
+                                ).executes(context -> {
+                                    var player =
+                                            context.getSource().getPlayer();
+
+                                    if (player != null) {
+                                        com.gafipro.gafiscript.net.GafiScriptNetworking
+                                                .openProjectFromServer(
+                                                        player,
+                                                        StringArgumentType.getString(
+                                                                context,
+                                                                "project"
+                                                        )
+                                                );
+                                    }
+
+                                    return 1;
+                                })
+                        )
+        );
+
+        project.then(
+                literal("export")
+                        .then(
+                                argument(
+                                        "project",
+                                        StringArgumentType.word()
+                                ).executes(context -> {
+                                    context.getSource().sendFeedback(
+                                            () -> Text.literal(
+                                                    ScriptManager.exportProject(
+                                                            context.getSource().getServer(),
+                                                            StringArgumentType.getString(
+                                                                    context,
+                                                                    "project"
+                                                            )
+                                                    )
+                                            ),
+                                            false
+                                    );
+                                    return 1;
+                                })
+                        )
+        );
+
+        project.then(
+                literal("import")
+                        .then(
+                                argument(
+                                        "archive",
+                                        StringArgumentType.string()
+                                ).executes(context -> {
+                                    context.getSource().sendFeedback(
+                                            () -> Text.literal(
+                                                    ScriptManager.importProject(
+                                                            context.getSource().getServer(),
+                                                            StringArgumentType.getString(
+                                                                    context,
+                                                                    "archive"
+                                                            )
+                                                    )
+                                            ),
+                                            false
+                                    );
+                                    return 1;
+                                })
+                        )
+        );
+
+        return project;
     }
 
     private static void sendHelp(ServerCommandSource source) {
