@@ -11,11 +11,14 @@ import java.util.concurrent.Executors;
 
 public final class GafiScheduler {
     private final List<GafiTask> tasks = new ArrayList<>();
-    private final ExecutorService asyncExecutor = Executors.newVirtualThreadPerTaskExecutor();
+    private volatile ExecutorService asyncExecutor = Executors.newVirtualThreadPerTaskExecutor();
     private volatile MinecraftServer server;
 
     public void attach(MinecraftServer server) {
         this.server = server;
+        if (asyncExecutor.isShutdown() || asyncExecutor.isTerminated()) {
+            asyncExecutor = Executors.newVirtualThreadPerTaskExecutor();
+        }
     }
 
     public void detach() {
@@ -23,6 +26,8 @@ public final class GafiScheduler {
             tasks.forEach(GafiTask::cancel);
             tasks.clear();
         }
+
+        asyncExecutor.shutdownNow();
         server = null;
     }
 
@@ -64,8 +69,29 @@ public final class GafiScheduler {
     }
 
     public void tick() {
+        List<GafiTask> snapshot;
         synchronized (tasks) {
-            tasks.removeIf(GafiTask::tick);
+            snapshot = List.copyOf(tasks);
+        }
+
+        List<GafiTask> completed = new ArrayList<>();
+        for (GafiTask task : snapshot) {
+            try {
+                if (task.tick()) {
+                    completed.add(task);
+                }
+            } catch (Throwable throwable) {
+                com.gafipro.gafiscript.GafiScriptMod.LOGGER.error(
+                        "GafiScript task failed outside its own error handler", throwable
+                );
+                completed.add(task);
+            }
+        }
+
+        if (!completed.isEmpty()) {
+            synchronized (tasks) {
+                tasks.removeAll(completed);
+            }
         }
     }
 
