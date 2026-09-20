@@ -1,6 +1,7 @@
 package com.gafipro.gafiscript.runtime;
 
 import com.gafipro.gafiscript.api.Gafi;
+import com.gafipro.gafiscript.runtime.GafiScriptContext;
 import net.minecraft.server.MinecraftServer;
 
 import java.nio.file.Files;
@@ -75,6 +76,7 @@ public final class ScriptManager {
             ACTIVE.put(name, active);
 
             try {
+                GafiScriptContext.enter(name);
                 result.script().start();
                 startResult.complete("Running " + name);
             } catch (Throwable throwable) {
@@ -103,6 +105,8 @@ public final class ScriptManager {
                         ": " +
                         cause.getMessage()
                 );
+            } finally {
+                GafiScriptContext.exit();
             }
         });
 
@@ -112,6 +116,9 @@ public final class ScriptManager {
     public static String stop(String scriptName) {
         String safeName = sanitize(scriptName);
         ActiveScript active = ACTIVE.remove(safeName);
+
+        Gafi.scheduler().cancelOwnedBy(safeName);
+        Gafi.commands().unregisterOwnedBy(safeName);
 
         if (active == null) {
             return "Script is not running: " + safeName;
