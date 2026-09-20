@@ -5,9 +5,11 @@ import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.gui.screen.Screen;
 import net.minecraft.client.gui.widget.ButtonWidget;
 import net.minecraft.client.gui.widget.TextFieldWidget;
+import net.minecraft.client.input.CharInput;
+import net.minecraft.client.input.Click;
+import net.minecraft.client.input.KeyInput;
 import net.minecraft.text.Text;
 import net.minecraft.util.math.BlockPos;
-import org.lwjgl.glfw.GLFW;
 
 public final class GafiScriptScreen extends Screen {
     private final BlockPos blockPos;
@@ -62,20 +64,22 @@ public final class GafiScriptScreen extends Screen {
     }
 
     @Override
-    public boolean keyPressed(int keyCode, int scanCode, int modifiers) {
-        boolean control = (modifiers & GLFW.GLFW_MOD_CONTROL) != 0;
+    public boolean keyPressed(KeyInput input) {
+        int keyCode = input.getKeycode();
+        int scanCode = input.scancode();
+        int modifiers = input.modifiers();
 
-        if (control && keyCode == GLFW.GLFW_KEY_S) {
+        if (input.hasCtrl() && keyCode == org.lwjgl.glfw.GLFW.GLFW_KEY_S) {
             save();
             return true;
         }
 
-        if (keyCode == GLFW.GLFW_KEY_F5) {
+        if (keyCode == org.lwjgl.glfw.GLFW.GLFW_KEY_F5) {
             run();
             return true;
         }
 
-        if (control && keyCode == GLFW.GLFW_KEY_SPACE) {
+        if (input.hasCtrl() && keyCode == org.lwjgl.glfw.GLFW.GLFW_KEY_SPACE) {
             editor.toggleCompletion();
             return true;
         }
@@ -84,40 +88,35 @@ public final class GafiScriptScreen extends Screen {
             return true;
         }
 
-        return super.keyPressed(keyCode, scanCode, modifiers);
+        return super.keyPressed(input);
     }
 
     @Override
-    public boolean charTyped(char chr, int modifiers) {
-        if (!nameField.isFocused() && editor.charTyped(chr, modifiers)) {
+    public boolean charTyped(CharInput input) {
+        if (!nameField.isFocused() && input.isValidChar() &&
+                editor.charTyped(input.asString(), input.modifiers())) {
             return true;
         }
-        return super.charTyped(chr, modifiers);
+        return super.charTyped(input);
     }
 
     @Override
-    public boolean mouseClicked(double mouseX, double mouseY, int button) {
-        if (mouseY >= 34 && mouseX >= 10 && mouseX <= width - 10) {
-            editor.mouseClicked(mouseX, mouseY, button);
+    public boolean mouseClicked(Click click, boolean doubled) {
+        if (click.y() >= 34 && click.x() >= 10 && click.x() <= width - 10) {
+            editor.mouseClicked(click.x(), click.y(), click.button());
         }
-        return super.mouseClicked(mouseX, mouseY, button);
+        return super.mouseClicked(click, doubled);
     }
 
     @Override
     public void render(DrawContext context, int mouseX, int mouseY, float delta) {
         renderBackground(context, mouseX, mouseY, delta);
-
-        context.drawTextWithShadow(textRenderer,
+        context.drawTextWithShadow(
+                textRenderer,
                 Text.literal("§7Block: " + blockPos.toShortString()),
-                235, 11, 0xFFFFFFFF);
-
+                235, 11, 0xFFFFFFFF
+        );
         editor.render(context);
-
         super.render(context, mouseX, mouseY, delta);
-    }
-
-    @Override
-    public void close() {
-        super.close();
     }
 }
