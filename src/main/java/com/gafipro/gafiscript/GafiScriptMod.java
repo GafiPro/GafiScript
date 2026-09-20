@@ -1,6 +1,7 @@
 package com.gafipro.gafiscript;
 
 import com.gafipro.gafiscript.api.Gafi;
+import com.gafipro.gafiscript.api.GafiEvents;
 import com.gafipro.gafiscript.command.GafiScriptCommands;
 import com.gafipro.gafiscript.net.GafiScriptNetworking;
 import com.gafipro.gafiscript.registry.ModBlockEntities;
@@ -25,6 +26,8 @@ public final class GafiScriptMod implements ModInitializer {
         ModBlockEntities.register();
         GafiScriptNetworking.registerCommon();
         GafiScriptCommands.register();
+        GafiEvents.register();
+        GafiEvents.INSTANCE.onTick(event -> Gafi.scheduler().tick());
 
         ServerLifecycleEvents.SERVER_STARTED.register(Gafi::attachServer);
         ServerLifecycleEvents.SERVER_STOPPING.register(Gafi::detachServer);
