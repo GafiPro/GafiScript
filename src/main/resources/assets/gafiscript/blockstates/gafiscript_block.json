@@ -1,0 +1,7 @@
+{
+  "variants": {
+    "": {
+      "model": "gafiscript:block/gafiscript_block"
+    }
+  }
+}
