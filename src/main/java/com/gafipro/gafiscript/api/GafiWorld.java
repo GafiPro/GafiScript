@@ -427,20 +427,20 @@ public final class GafiWorld {
                         b.getZ()
                 );
 
+        long volume =
+                (long) (maxX - minX + 1) *
+                (maxY - minY + 1) *
+                (maxZ - minZ + 1);
+
+        if (volume > 250_000L) {
+            throw new IllegalArgumentException(
+                    "Region is too large: " +
+                            volume +
+                            " blocks."
+            );
+        }
+
         server.execute(() -> {
-            long volume =
-                    (long) (maxX - minX + 1) *
-                    (maxY - minY + 1) *
-                    (maxZ - minZ + 1);
-
-            if (volume > 250_000L) {
-                throw new IllegalArgumentException(
-                        "Region is too large: " +
-                                volume +
-                                " blocks."
-                );
-            }
-
             for (int x = minX;
                  x <= maxX;
                  x++) {
