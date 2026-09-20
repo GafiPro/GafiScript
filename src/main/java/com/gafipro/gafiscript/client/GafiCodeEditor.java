@@ -118,15 +118,11 @@ public final class GafiCodeEditor {
 
     public void setText(String text) {
         lines.clear();
-        lines.addAll(
-                Arrays.asList(
-                        text == null
-                                ? ""
-                                : text.replace("\r\n", "\n")
-                                        .replace('\r', '\n')
-                                        .split("\n", -1)
-                )
-        );
+        String normalized = text == null
+                ? ""
+                : text.replace("\r\n", "\n")
+                        .replace('\r', '\n');
+        lines.addAll(Arrays.asList(normalized.split("\n", -1)));
 
         if (lines.isEmpty()) {
             lines.add("");
@@ -1488,22 +1484,10 @@ public final class GafiCodeEditor {
             int cursorOffset
     ) {
         lines.clear();
-        lines.addAll(
-                Arrays.asList(
-                        text.replace(
-                                        "\r\n",
-                                        "\n"
-                                )
-                                .replace(
-                                        '\r',
-                                        '\n'
-                                )
-                                .split(
-                                        "\n",
-                                        -1
-                                )
-                )
-        );
+        String normalized = text
+                .replace("\r\n", "\n")
+                .replace('\r', '\n');
+        lines.addAll(Arrays.asList(normalized.split("\n", -1)));
 
         if (lines.isEmpty()) {
             lines.add("");
