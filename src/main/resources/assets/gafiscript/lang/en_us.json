@@ -1,0 +1,9 @@
+{
+  "block.gafiscript.gafiscript_block": "GafiScript Block",
+  "screen.gafiscript.editor": "GafiScript Editor",
+  "gafiscript.ui.save": "Save",
+  "gafiscript.ui.run": "Run",
+  "gafiscript.ui.reload": "Reload",
+  "gafiscript.status.saved": "Script saved.",
+  "gafiscript.status.running": "Script is running."
+}
