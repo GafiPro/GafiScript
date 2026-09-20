@@ -1123,7 +1123,7 @@ public final class GafiCodeEditor {
 
         String normalized = line
                 .replaceAll("//.*$", "")
-                .replaceAll("\\"(?:\\\\.|[^\\"])*\\"", "")
+                .replaceAll("\\\"(?:\\\\.|[^\\\"\\\\])*\\\"", "")
                 .replaceAll("[^A-Za-z0-9_$-]+", " ")
                 .trim();
 
