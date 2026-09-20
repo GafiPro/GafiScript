@@ -61,7 +61,7 @@ class GafiTaskTest {
         assertFalse(task.tick());
         assertEquals(1, calls.get());
 
-        assertTrueOrNotCancelled(task, calls, 1);
+        assertTrueOrNotCancelled(task, calls, 2);
         assertEquals(2, calls.get());
         assertFalse(task.isCancelled());
     }
