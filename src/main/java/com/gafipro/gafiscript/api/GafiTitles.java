@@ -13,7 +13,7 @@ public final class GafiTitles {
             String title
     ) {
         ServerPlayerEntity raw = player.raw();
-        raw.networkHandler.send(
+        raw.networkHandler.sendPacket(
                 new TitleS2CPacket(Text.literal(title))
         );
     }
@@ -23,7 +23,7 @@ public final class GafiTitles {
             String subtitle
     ) {
         ServerPlayerEntity raw = player.raw();
-        raw.networkHandler.send(
+        raw.networkHandler.sendPacket(
                 new SubtitleS2CPacket(Text.literal(subtitle))
         );
     }
