@@ -144,6 +144,25 @@ public final class Gafi {
         );
     }
 
+    public static GafiState state() {
+        String script =
+                com.gafipro.gafiscript.runtime.GafiScriptContext
+                        .currentScript();
+
+        if (script == null || script.isBlank()) {
+            throw new IllegalStateException(
+                    "Gafi.state() can only be used from a running script."
+            );
+        }
+
+        return new GafiState(
+                new com.gafipro.gafiscript.runtime.ScriptStateStore(
+                        server(),
+                        script
+                )
+        );
+    }
+
     public static GafiEntity entity(
             java.util.UUID uuid
     ) {
