@@ -1,12 +1,12 @@
 package com.gafipro.gafiscript.client;
 
 import com.gafipro.gafiscript.net.GafiScriptNetworking;
+import net.minecraft.client.gui.Click;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.gui.screen.Screen;
 import net.minecraft.client.gui.widget.ButtonWidget;
 import net.minecraft.client.gui.widget.TextFieldWidget;
 import net.minecraft.client.input.CharInput;
-import net.minecraft.client.input.Click;
 import net.minecraft.client.input.KeyInput;
 import net.minecraft.text.Text;
 import net.minecraft.util.math.BlockPos;
@@ -38,7 +38,6 @@ public final class GafiScriptScreen extends Screen {
 
         addDrawableChild(ButtonWidget.builder(Text.translatable("gafiscript.ui.reload"), button -> {
                     GafiScriptNetworking.sendScriptRequest(blockPos);
-                    nameField.setText(scriptName);
                 })
                 .dimensions(width - 80, 6, 68, 20).build());
 
@@ -48,7 +47,9 @@ public final class GafiScriptScreen extends Screen {
     public void setScriptData(BlockPos pos, String name, String source) {
         if (!blockPos.equals(pos)) return;
         this.scriptName = name == null || name.isBlank() ? "Main" : name;
-        this.nameField.setText(this.scriptName);
+        if (this.nameField != null) {
+            this.nameField.setText(this.scriptName);
+        }
         this.editor.setText(source == null ? "" : source);
         this.editor.clearProblems();
     }
@@ -103,7 +104,7 @@ public final class GafiScriptScreen extends Screen {
     @Override
     public boolean mouseClicked(Click click, boolean doubled) {
         if (click.y() >= 34 && click.x() >= 10 && click.x() <= width - 10) {
-            editor.mouseClicked(click.x(), click.y(), click.button());
+            editor.mouseClicked(click.x(), click.y(), click.buttonInfo().button());
         }
         return super.mouseClicked(click, doubled);
     }
@@ -111,11 +112,13 @@ public final class GafiScriptScreen extends Screen {
     @Override
     public void render(DrawContext context, int mouseX, int mouseY, float delta) {
         renderBackground(context, mouseX, mouseY, delta);
+
         context.drawTextWithShadow(
                 textRenderer,
                 Text.literal("§7Block: " + blockPos.toShortString()),
                 235, 11, 0xFFFFFFFF
         );
+
         editor.render(context);
         super.render(context, mouseX, mouseY, delta);
     }
