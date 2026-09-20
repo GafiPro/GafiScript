@@ -143,7 +143,7 @@ public final class GafiItemBuilder {
             net.minecraft.component.ComponentType<?> type,
             Object value
     ) {
-        setUnchecked(type, value);
+        setUnchecked(stack, type, value);
         return this;
     }
 
