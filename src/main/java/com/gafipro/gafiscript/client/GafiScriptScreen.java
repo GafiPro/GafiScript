@@ -330,6 +330,30 @@ public final class GafiScriptScreen extends Screen {
 
         editor.render(context);
 
+        String hover = editor.hoverTextAt(mouseX, mouseY);
+        if (hover != null) {
+            int boxWidth = Math.min(width - 20, textRenderer.getWidth(hover) + 12);
+            int boxX = Math.max(8, Math.min(mouseX + 8, width - boxWidth - 8));
+            int boxY = Math.max(28, mouseY - 22);
+
+            context.fill(
+                    boxX,
+                    boxY,
+                    boxX + boxWidth,
+                    boxY + 18,
+                    0xEE20242B
+            );
+
+            context.drawText(
+                    textRenderer,
+                    hover,
+                    boxX + 6,
+                    boxY + 5,
+                    0xFFFFFFFF,
+                    false
+            );
+        }
+
         super.render(
                 context,
                 mouseX,
