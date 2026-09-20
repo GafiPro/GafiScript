@@ -139,3 +139,4 @@ public final class GafiRepl {
             ScriptCompiler.CompilationResult result,
             boolean statementMode
     ) {}
+}
