@@ -1,19 +1,28 @@
 package com.gafipro.gafiscript.scheduler;
 
+import com.gafipro.gafiscript.runtime.GafiScriptContext;
+
 import java.util.concurrent.atomic.AtomicBoolean;
 
 public final class GafiTask {
     private final AtomicBoolean cancelled = new AtomicBoolean(false);
-    private volatile long remainingTicks;
     private final long periodTicks;
     private final Runnable action;
     private final boolean repeating;
+    private final String ownerScript;
+    private volatile long remainingTicks;
 
-    GafiTask(long delayTicks, long periodTicks, Runnable action, boolean repeating) {
+    GafiTask(
+            long delayTicks,
+            long periodTicks,
+            Runnable action,
+            boolean repeating
+    ) {
         this.remainingTicks = Math.max(0, delayTicks);
         this.periodTicks = Math.max(1, periodTicks);
         this.action = action;
         this.repeating = repeating;
+        this.ownerScript = GafiScriptContext.currentScript();
     }
 
     public void cancel() {
@@ -24,17 +33,22 @@ public final class GafiTask {
         return cancelled.get();
     }
 
+    public String ownerScript() {
+        return ownerScript;
+    }
+
     boolean tick() {
         if (cancelled.get()) return true;
+
         if (remainingTicks > 0) {
             remainingTicks--;
             return false;
         }
 
-        try {
-            action.run();
-        } catch (Throwable throwable) {
-            com.gafipro.gafiscript.GafiScriptMod.LOGGER.error("GafiScript scheduled task failed", throwable);
+        if (ownerScript == null) {
+            runAction();
+        } else {
+            GafiScriptContext.runAs(ownerScript, this::runAction);
         }
 
         if (!repeating) {
@@ -44,5 +58,16 @@ public final class GafiTask {
 
         remainingTicks = periodTicks;
         return false;
+    }
+
+    private void runAction() {
+        try {
+            action.run();
+        } catch (Throwable throwable) {
+            com.gafipro.gafiscript.GafiScriptMod.LOGGER.error(
+                    "GafiScript scheduled task failed",
+                    throwable
+            );
+        }
     }
 }
