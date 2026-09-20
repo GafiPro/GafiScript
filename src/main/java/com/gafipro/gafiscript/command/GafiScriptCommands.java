@@ -139,6 +139,68 @@ public final class GafiScriptCommands {
                                     )
                     );
 
+
+                    root.then(
+                            literal("check")
+                                    .then(
+                                            argument(
+                                                    "script",
+                                                    StringArgumentType.word()
+                                            ).executes(context -> {
+                                                String name =
+                                                        StringArgumentType.getString(
+                                                                context,
+                                                                "script"
+                                                        );
+
+                                                java.nio.file.Path file =
+                                                        ScriptManager.scriptsDirectory(
+                                                                context.getSource().getServer()
+                                                        ).resolve(
+                                                                name.replaceAll(
+                                                                        "[^A-Za-z0-9_$.-]",
+                                                                        "_"
+                                                                ) + ".java"
+                                                        );
+
+                                                try {
+                                                    String source =
+                                                            java.nio.file.Files.readString(file);
+
+                                                    ScriptManager.checkSourceAsync(
+                                                                    context.getSource().getServer(),
+                                                                    name,
+                                                                    source
+                                                            )
+                                                            .thenAccept(result ->
+                                                                    context.getSource().getServer().execute(
+                                                                            () ->
+                                                                                    context.getSource().sendFeedback(
+                                                                                            () -> Text.literal(
+                                                                                                    result.success()
+                                                                                                            ? "Check passed: " + name
+                                                                                                            : "Check failed: " + result.diagnostics()
+                                                                                            ),
+                                                                                            false
+                                                                                    )
+                                                                    )
+                                                            );
+
+                                                    return 1;
+                                                } catch (Exception exception) {
+                                                    context.getSource().sendFeedback(
+                                                            () -> Text.literal(
+                                                                    "Check failed: " +
+                                                                            exception.getMessage()
+                                                            ),
+                                                            false
+                                                    );
+                                                    return 0;
+                                                }
+                                            })
+                                    )
+                    );
+
                     root.then(replCommand());
                     root.then(debugCommand());
                     root.then(watchdogCommand());
@@ -571,7 +633,7 @@ public final class GafiScriptCommands {
     private static void sendHelp(ServerCommandSource source) {
         source.sendFeedback(
                 () -> Text.literal(
-                        "/gafiscript help | list | run <script> | stop <script> | info <script> | project <list|create|run|reload|edit|export|import> | repl <code> | debug <enable|disable|break|clear|hits> | watchdog <budget|show> | event <name> <payload>"
+                        "/gafiscript help | list | run <script> | check <script> | stop <script> | info <script> | project <list|create|run|reload|edit|export|import> | repl <code> | debug <enable|disable|break|clear|hits> | watchdog <budget|show> | event <name> <payload>"
                 ),
                 false
         );
