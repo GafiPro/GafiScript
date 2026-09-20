@@ -233,8 +233,20 @@ class GafiScriptAuditTest {
                                 units
                         );
 
+                boolean compiled = Boolean.TRUE.equals(task.call());
+
+                if (!compiled) {
+                    System.err.println(
+                            "[GafiScriptAuditTest] repositoryExamplesCompile diagnostics:\n" +
+                                    formatDiagnostics(diagnostics) +
+                                    "\nExamples: " +
+                                    sources
+                    );
+                    System.err.flush();
+                }
+
                 assertTrue(
-                        Boolean.TRUE.equals(task.call()),
+                        compiled,
                         formatDiagnostics(diagnostics) +
                                 "\nExamples: " +
                                 sources
