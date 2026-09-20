@@ -76,6 +76,25 @@ class GafiScriptAuditTest {
                     ScriptBytecodeValidator.validateDirectory(output);
 
             assertTrue(validation.valid(), validation.message());
+
+            try (RestrictedClassLoader loader =
+                         new RestrictedClassLoader(
+                                 new URL[]{output.toUri().toURL()},
+                                 getClass().getClassLoader()
+                         )) {
+                Class<?> main =
+                        loader.loadClass("Main");
+
+                Object runnable =
+                        main.getMethod("make").invoke(null);
+
+                assertNotNull(runnable);
+                assertTrue(runnable instanceof Runnable);
+
+                assertDoesNotThrow(
+                        () -> ((Runnable) runnable).run()
+                );
+            }
         } finally {
             deleteTree(output);
         }
@@ -92,6 +111,9 @@ class GafiScriptAuditTest {
                 );
 
         try {
+            // The JVM must still be able to resolve its own lambda runtime.
+            // Direct user access to java.lang.invoke remains blocked by
+            // ScriptSecurity before compilation.
             assertDoesNotThrow(() ->
                     Class.forName(
                             "java.lang.invoke.LambdaMetafactory",
