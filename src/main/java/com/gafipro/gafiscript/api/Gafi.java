@@ -7,6 +7,7 @@ import net.minecraft.text.Text;
 
 import java.util.List;
 import java.util.Objects;
+import java.util.concurrent.TimeUnit;
 
 public final class Gafi {
     private static volatile MinecraftServer server;
@@ -38,6 +39,10 @@ public final class Gafi {
         return SCHEDULER;
     }
 
+    public static GafiEvents events() {
+        return GafiEvents.INSTANCE;
+    }
+
     public static GafiWorld world() {
         return new GafiWorld(server());
     }
@@ -56,11 +61,27 @@ public final class Gafi {
 
     public static GafiPlayer playerByUuid(String uuid) {
         try {
-            ServerPlayerEntity player = server().getPlayerManager().getPlayer(UUIDParser.parse(uuid));
+            ServerPlayerEntity player = server().getPlayerManager().getPlayer(java.util.UUID.fromString(uuid));
             return player == null ? null : new GafiPlayer(player);
         } catch (IllegalArgumentException e) {
             return null;
         }
+    }
+
+    public static GafiTask delayTicks(long ticks, Runnable action) {
+        return scheduler().delayTicks(ticks, action);
+    }
+
+    public static GafiTask delaySeconds(double seconds, Runnable action) {
+        return scheduler().delaySeconds(seconds, action);
+    }
+
+    public static GafiTask repeatTicks(long ticks, Runnable action) {
+        return scheduler().repeatTicks(ticks, action);
+    }
+
+    public static GafiTask repeatSeconds(double seconds, Runnable action) {
+        return scheduler().repeatSeconds(seconds, action);
     }
 
     public static void broadcast(String message) {
@@ -83,13 +104,5 @@ public final class Gafi {
     public static void runSync(Runnable runnable) {
         Objects.requireNonNull(runnable, "runnable");
         server().execute(runnable);
-    }
-
-    private static final class UUIDParser {
-        private UUIDParser() {}
-
-        static java.util.UUID parse(String value) {
-            return java.util.UUID.fromString(value);
-        }
     }
 }
