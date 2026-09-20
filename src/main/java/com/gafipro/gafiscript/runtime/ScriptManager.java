@@ -120,6 +120,7 @@ public final class ScriptManager {
         Gafi.scheduler().cancelOwnedBy(safeName);
         Gafi.commands().unregisterOwnedBy(safeName);
         Gafi.events().unregisterOwnedBy(safeName);
+        Gafi.gui().closeOwnedBy(safeName);
 
         if (active == null) {
             return "Script is not running: " + safeName;
