@@ -206,6 +206,47 @@ public final class ScriptManager {
         return "Stopped " + safeName;
     }
 
+    public static java.util.concurrent.CompletableFuture<ScriptCheckResult> checkSourceAsync(
+            MinecraftServer server,
+            String scriptName,
+            String source
+    ) {
+        String safeName = sanitize(scriptName);
+
+        return Gafi.scheduler()
+                .supplyAsync(() ->
+                        ScriptCompiler.compile(
+                                safeName,
+                                source,
+                                server
+                        )
+                )
+                .thenApply(result -> {
+                    if (result.success()) {
+                        try {
+                            result.script().close();
+                        } catch (Exception ignored) {
+                        }
+
+                        if (result.outputDirectory() != null) {
+                            deleteDirectory(
+                                    result.outputDirectory()
+                            );
+                        }
+
+                        return new ScriptCheckResult(
+                                true,
+                                "No compilation errors."
+                        );
+                    }
+
+                    return new ScriptCheckResult(
+                            false,
+                            result.error()
+                    );
+                });
+    }
+
     public static String reloadFromFile(
             MinecraftServer server,
             String scriptName
