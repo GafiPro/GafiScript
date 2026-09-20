@@ -86,7 +86,7 @@ public final class GafiScriptNetworking {
             ServerPlayerEntity player = context.player();
             if (!canEdit(player)) return;
 
-            if (!(player.getWorld().getBlockEntity(payload.pos()) instanceof GafiScriptBlockEntity blockEntity)) {
+            if (!(player.getCommandSource().getWorld().getBlockEntity(payload.pos()) instanceof GafiScriptBlockEntity blockEntity)) {
                 return;
             }
 
@@ -107,8 +107,8 @@ public final class GafiScriptNetworking {
             if (!canEdit(player)) return;
             if (!saveBlock(player, payload.pos(), payload.name(), payload.source())) return;
 
-            ScriptManager.runSourceAsync(player.getServer(), payload.name(), payload.source())
-                    .whenComplete((result, throwable) -> player.getServer().execute(() -> {
+            ScriptManager.runSourceAsync(player.getCommandSource().getServer(), payload.name(), payload.source())
+                    .whenComplete((result, throwable) -> player.getCommandSource().getServer().execute(() -> {
                         String message = throwable == null
                                 ? result
                                 : "Runtime failure: " + throwable.getMessage();
@@ -157,7 +157,7 @@ public final class GafiScriptNetworking {
             ServerPlayNetworking.send(player, new MessagePayload("Source is too large."));
             return false;
         }
-        if (!(player.getWorld().getBlockEntity(pos) instanceof GafiScriptBlockEntity blockEntity)) {
+        if (!(player.getCommandSource().getWorld().getBlockEntity(pos) instanceof GafiScriptBlockEntity blockEntity)) {
             ServerPlayNetworking.send(player, new MessagePayload("No GafiScript block found."));
             return false;
         }
