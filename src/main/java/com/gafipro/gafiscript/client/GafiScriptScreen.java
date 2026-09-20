@@ -310,7 +310,10 @@ public final class GafiScriptScreen extends Screen {
             int mouseY,
             float delta
     ) {
-        renderBackground(
+        // Screen#render already renders the screen background. Calling
+        // renderBackground() here as well causes Minecraft 1.21.11 to
+        // request the blur pass twice in the same frame.
+        super.render(
                 context,
                 mouseX,
                 mouseY,
@@ -353,12 +356,5 @@ public final class GafiScriptScreen extends Screen {
                     false
             );
         }
-
-        super.render(
-                context,
-                mouseX,
-                mouseY,
-                delta
-        );
     }
 }
