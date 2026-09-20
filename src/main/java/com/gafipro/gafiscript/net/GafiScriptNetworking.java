@@ -109,8 +109,13 @@ public final class GafiScriptNetworking {
             if (!player.hasPermissionLevel(2)) return;
             if (!saveBlock(player, payload.pos(), payload.name(), payload.source())) return;
 
-            String result = ScriptManager.runSource(player.getServer(), payload.name(), payload.source());
-            ServerPlayNetworking.send(player, new MessagePayload(result));
+            ScriptManager.runSourceAsync(player.getServer(), payload.name(), payload.source())
+                    .whenComplete((result, throwable) -> player.getServer().execute(() -> {
+                        String message = throwable == null
+                                ? result
+                                : "Runtime failure: " + throwable.getMessage();
+                        ServerPlayNetworking.send(player, new MessagePayload(message));
+                    }));
         });
     }
 
