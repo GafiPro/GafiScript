@@ -63,6 +63,10 @@ public final class Gafi {
         return PROFILER;
     }
 
+    public static GafiScoreboard scoreboard() {
+        return new GafiScoreboard(server());
+    }
+
     public static GafiWorld world() {
         return new GafiWorld(server());
     }
