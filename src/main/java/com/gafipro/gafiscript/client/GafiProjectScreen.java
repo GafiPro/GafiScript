@@ -392,8 +392,14 @@ public final class GafiProjectScreen extends Screen {
             int mouseY,
             float delta
     ) {
-        // Screen#render already renders the background. Rendering it here
-        // as well can request Minecraft 1.21.11's blur pass twice in a frame.
+        // Render the base screen/widgets first. Drawing the editor before
+        // super.render() lets Screen paint over the editor in Minecraft 1.21.11.
+        super.render(
+                context,
+                mouseX,
+                mouseY,
+                delta
+        );
         context.drawTextWithShadow(
                 textRenderer,
                 Text.literal(
@@ -431,11 +437,5 @@ public final class GafiProjectScreen extends Screen {
             );
         }
 
-        super.render(
-                context,
-                mouseX,
-                mouseY,
-                delta
-        );
     }
 }
