@@ -15,6 +15,9 @@ public final class ScriptManager {
     private static final Map<String, ActiveScript> ACTIVE =
             new ConcurrentHashMap<>();
 
+    private static final Map<String, ScriptInfo> INFO =
+            new ConcurrentHashMap<>();
+
     private ScriptManager() {}
 
     public static CompletableFuture<String> runSourceAsync(
@@ -23,6 +26,13 @@ public final class ScriptManager {
             String source
     ) {
         String safeName = sanitize(scriptName);
+
+        updateInfo(
+                safeName,
+                ScriptState.COMPILING,
+                null,
+                "Compiling script"
+        );
 
         return Gafi.scheduler().supplyAsync(() ->
                 ScriptCompiler.compile(safeName, source, server)
@@ -36,6 +46,13 @@ public final class ScriptManager {
             String projectName
     ) {
         String safeName = sanitize(projectName);
+
+        updateInfo(
+                safeName,
+                ScriptState.COMPILING,
+                null,
+                "Compiling project"
+        );
 
         return Gafi.scheduler().supplyAsync(() ->
                 ScriptCompiler.compileProject(
@@ -56,6 +73,13 @@ public final class ScriptManager {
             ScriptCompiler.CompilationResult result
     ) {
         if (!result.success()) {
+            updateInfo(
+                    name,
+                    ScriptState.FAILED,
+                    null,
+                    result.error()
+            );
+
             return CompletableFuture.completedFuture(
                     "Compile error: " + result.error()
             );
@@ -67,10 +91,18 @@ public final class ScriptManager {
         server.execute(() -> {
             stop(name);
 
+            updateInfo(
+                    name,
+                    ScriptState.STARTING,
+                    java.time.Instant.now(),
+                    "Starting"
+            );
+
             ActiveScript active = new ActiveScript(
                     name,
                     result.script(),
-                    result.outputDirectory()
+                    result.outputDirectory(),
+                    java.time.Instant.now()
             );
 
             ACTIVE.put(name, active);
@@ -78,9 +110,24 @@ public final class ScriptManager {
             try {
                 GafiScriptContext.enter(name);
                 result.script().start();
+
+                updateInfo(
+                        name,
+                        ScriptState.RUNNING,
+                        active.startedAt(),
+                        "Running"
+                );
+
                 startResult.complete("Running " + name);
             } catch (Throwable throwable) {
                 ACTIVE.remove(name);
+
+                updateInfo(
+                        name,
+                        ScriptState.FAILED,
+                        active.startedAt(),
+                        throwable.getMessage()
+                );
 
                 try {
                     result.script().close();
@@ -117,12 +164,28 @@ public final class ScriptManager {
         String safeName = sanitize(scriptName);
         ActiveScript active = ACTIVE.remove(safeName);
 
+        updateInfo(
+                safeName,
+                ScriptState.STOPPING,
+                active == null
+                        ? null
+                        : active.startedAt(),
+                "Stopping"
+        );
+
         Gafi.scheduler().cancelOwnedBy(safeName);
         Gafi.commands().unregisterOwnedBy(safeName);
         Gafi.events().unregisterOwnedBy(safeName);
         Gafi.gui().closeOwnedBy(safeName);
+        Gafi.customEvents().unregisterOwnedBy(safeName);
 
         if (active == null) {
+            updateInfo(
+                    safeName,
+                    ScriptState.STOPPED,
+                    null,
+                    "Stopped"
+            );
             return "Script is not running: " + safeName;
         }
 
@@ -132,6 +195,13 @@ public final class ScriptManager {
         }
 
         deleteDirectory(active.outputDirectory);
+
+        updateInfo(
+                safeName,
+                ScriptState.STOPPED,
+                active.startedAt(),
+                "Stopped"
+        );
 
         return "Stopped " + safeName;
     }
@@ -262,6 +332,50 @@ public final class ScriptManager {
         return Set.copyOf(ACTIVE.keySet());
     }
 
+    public static ScriptInfo info(
+            String scriptName
+    ) {
+        String safeName = sanitize(scriptName);
+        return INFO.getOrDefault(
+                safeName,
+                new ScriptInfo(
+                        safeName,
+                        ScriptState.STOPPED,
+                        null,
+                        java.time.Instant.now(),
+                        "Never run"
+                )
+        );
+    }
+
+    public static Map<String, ScriptInfo> infos() {
+        return Map.copyOf(INFO);
+    }
+
+    private static void updateInfo(
+            String name,
+            ScriptState state,
+            java.time.Instant startedAt,
+            String message
+    ) {
+        ScriptInfo previous = INFO.get(name);
+
+        INFO.put(
+                name,
+                new ScriptInfo(
+                        name,
+                        state,
+                        startedAt != null
+                                ? startedAt
+                                : previous == null
+                                ? null
+                                : previous.startedAt(),
+                        java.time.Instant.now(),
+                        message
+                )
+        );
+    }
+
     public static Path scriptsDirectory(
             MinecraftServer server
     ) {
@@ -315,6 +429,7 @@ public final class ScriptManager {
     private record ActiveScript(
             String name,
             CompiledScript script,
-            Path outputDirectory
+            Path outputDirectory,
+            java.time.Instant startedAt
     ) {}
 }
