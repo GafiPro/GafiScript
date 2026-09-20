@@ -1,5 +1,6 @@
 package com.gafipro.gafiscript.scheduler;
 
+import com.gafipro.gafiscript.runtime.GafiScriptContext;
 import net.minecraft.server.MinecraftServer;
 
 import java.util.ArrayList;
@@ -18,8 +19,10 @@ public final class GafiScheduler {
     public void attach(MinecraftServer server) {
         this.server = server;
 
-        if (asyncExecutor.isShutdown() || asyncExecutor.isTerminated()) {
-            asyncExecutor = Executors.newVirtualThreadPerTaskExecutor();
+        if (asyncExecutor.isShutdown() ||
+                asyncExecutor.isTerminated()) {
+            asyncExecutor =
+                    Executors.newVirtualThreadPerTaskExecutor();
         }
     }
 
@@ -37,21 +40,56 @@ public final class GafiScheduler {
         return schedule(1, 1, action, false);
     }
 
-    public GafiTask delayTicks(long ticks, Runnable action) {
-        return schedule(Math.max(0, ticks), 1, action, false);
+    public GafiTask delayTicks(
+            long ticks,
+            Runnable action
+    ) {
+        return schedule(
+                Math.max(0, ticks),
+                1,
+                action,
+                false
+        );
     }
 
-    public GafiTask delaySeconds(double seconds, Runnable action) {
-        return delayTicks(Math.max(0, Math.round(seconds * 20.0)), action);
+    public GafiTask delaySeconds(
+            double seconds,
+            Runnable action
+    ) {
+        return delayTicks(
+                Math.max(
+                        0,
+                        Math.round(seconds * 20.0)
+                ),
+                action
+        );
     }
 
-    public GafiTask repeatTicks(long periodTicks, Runnable action) {
+    public GafiTask repeatTicks(
+            long periodTicks,
+            Runnable action
+    ) {
         long period = Math.max(1, periodTicks);
-        return schedule(period, period, action, true);
+
+        return schedule(
+                period,
+                period,
+                action,
+                true
+        );
     }
 
-    public GafiTask repeatSeconds(double seconds, Runnable action) {
-        return repeatTicks(Math.max(1, Math.round(seconds * 20.0)), action);
+    public GafiTask repeatSeconds(
+            double seconds,
+            Runnable action
+    ) {
+        return repeatTicks(
+                Math.max(
+                        1,
+                        Math.round(seconds * 20.0)
+                ),
+                action
+        );
     }
 
     public GafiTaskGroup group(String name) {
@@ -67,16 +105,58 @@ public final class GafiScheduler {
         requireServer().execute(action);
     }
 
-    public CompletableFuture<Void> runAsync(Runnable action) {
+    public CompletableFuture<Void> runAsync(
+            Runnable action
+    ) {
         Objects.requireNonNull(action, "action");
-        return CompletableFuture.runAsync(action, asyncExecutor);
+        String owner = GafiScriptContext.currentScript();
+
+        return CompletableFuture.runAsync(() -> {
+            if (owner == null) {
+                action.run();
+            } else {
+                GafiScriptContext.runAs(owner, action);
+            }
+        }, asyncExecutor);
     }
 
     public <T> CompletableFuture<T> supplyAsync(
             java.util.function.Supplier<T> supplier
     ) {
         Objects.requireNonNull(supplier, "supplier");
-        return CompletableFuture.supplyAsync(supplier, asyncExecutor);
+        String owner = GafiScriptContext.currentScript();
+
+        return CompletableFuture.supplyAsync(() -> {
+            if (owner == null) {
+                return supplier.get();
+            }
+
+            final Object[] result = new Object[1];
+
+            GafiScriptContext.runAs(
+                    owner,
+                    () -> result[0] = supplier.get()
+            );
+
+            @SuppressWarnings("unchecked")
+            T typed = (T) result[0];
+            return typed;
+        }, asyncExecutor);
+    }
+
+    public void cancelOwnedBy(String scriptName) {
+        if (scriptName == null) return;
+
+        synchronized (tasks) {
+            tasks.removeIf(task -> {
+                if (!scriptName.equals(task.ownerScript())) {
+                    return false;
+                }
+
+                task.cancel();
+                return true;
+            });
+        }
     }
 
     public void tick() {
@@ -86,7 +166,8 @@ public final class GafiScheduler {
             snapshot = List.copyOf(tasks);
         }
 
-        List<GafiTask> completed = new ArrayList<>();
+        List<GafiTask> completed =
+                new ArrayList<>();
 
         for (GafiTask task : snapshot) {
             try {
@@ -118,12 +199,13 @@ public final class GafiScheduler {
         Objects.requireNonNull(action, "action");
         requireServer();
 
-        GafiTask task = new GafiTask(
-                delayTicks,
-                periodTicks,
-                action,
-                repeating
-        );
+        GafiTask task =
+                new GafiTask(
+                        delayTicks,
+                        periodTicks,
+                        action,
+                        repeating
+                );
 
         synchronized (tasks) {
             tasks.add(task);
