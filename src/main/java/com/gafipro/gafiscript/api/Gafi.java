@@ -13,6 +13,8 @@ public final class Gafi {
     private static volatile MinecraftServer server;
     private static final GafiScheduler SCHEDULER = new GafiScheduler();
     private static final GafiRandom RANDOM = new GafiRandom();
+    private static final GafiCommands COMMANDS = new GafiCommands();
+    private static final GafiProfiler PROFILER = new GafiProfiler();
 
     private Gafi() {}
 
@@ -23,6 +25,7 @@ public final class Gafi {
 
     public static void detachServer(MinecraftServer minecraftServer) {
         if (server == minecraftServer) {
+            COMMANDS.unregisterAll();
             SCHEDULER.detach();
             server = null;
         }
@@ -30,11 +33,13 @@ public final class Gafi {
 
     public static MinecraftServer server() {
         MinecraftServer current = server;
+
         if (current == null) {
             throw new IllegalStateException(
                     "GafiScript is not attached to a running server."
             );
         }
+
         return current;
     }
 
@@ -48,6 +53,14 @@ public final class Gafi {
 
     public static GafiRandom random() {
         return RANDOM;
+    }
+
+    public static GafiCommands commands() {
+        return COMMANDS;
+    }
+
+    public static GafiProfiler profiler() {
+        return PROFILER;
     }
 
     public static GafiWorld world() {
@@ -65,7 +78,9 @@ public final class Gafi {
         ServerPlayerEntity player =
                 server().getPlayerManager().getPlayer(name);
 
-        return player == null ? null : new GafiPlayer(player);
+        return player == null
+                ? null
+                : new GafiPlayer(player);
     }
 
     public static GafiPlayer playerByUuid(String uuid) {
@@ -75,31 +90,46 @@ public final class Gafi {
                             java.util.UUID.fromString(uuid)
                     );
 
-            return player == null ? null : new GafiPlayer(player);
+            return player == null
+                    ? null
+                    : new GafiPlayer(player);
         } catch (IllegalArgumentException e) {
             return null;
         }
     }
 
     public static GafiStorage storage(String namespace) {
-        return new GafiStorage(server(), namespace);
+        return new GafiStorage(
+                server(),
+                namespace
+        );
     }
 
     public static GafiConfig config(String namespace) {
-        return new GafiConfig(server(), namespace);
+        return new GafiConfig(
+                server(),
+                namespace
+        );
     }
 
     public static GafiDatabase database(String namespace) {
-        return new GafiDatabase(server(), namespace);
+        return new GafiDatabase(
+                server(),
+                namespace
+        );
     }
 
-    public static GafiEntity entity(java.util.UUID uuid) {
+    public static GafiEntity entity(
+            java.util.UUID uuid
+    ) {
         for (var world : server().getWorlds()) {
             var entity = world.getEntity(uuid);
+
             if (entity != null) {
                 return new GafiEntity(entity);
             }
         }
+
         return null;
     }
 
@@ -108,43 +138,84 @@ public final class Gafi {
             net.minecraft.entity.boss.ServerBossBar.Color color,
             net.minecraft.entity.boss.ServerBossBar.Style style
     ) {
-        return new GafiBossBar(name, color, style);
+        return new GafiBossBar(
+                name,
+                color,
+                style
+        );
     }
 
-    public static GafiTask delayTicks(long ticks, Runnable action) {
-        return scheduler().delayTicks(ticks, action);
+    public static GafiTask delayTicks(
+            long ticks,
+            Runnable action
+    ) {
+        return scheduler().delayTicks(
+                ticks,
+                action
+        );
     }
 
-    public static GafiTask delaySeconds(double seconds, Runnable action) {
-        return scheduler().delaySeconds(seconds, action);
+    public static GafiTask delaySeconds(
+            double seconds,
+            Runnable action
+    ) {
+        return scheduler().delaySeconds(
+                seconds,
+                action
+        );
     }
 
-    public static GafiTask repeatTicks(long ticks, Runnable action) {
-        return scheduler().repeatTicks(ticks, action);
+    public static GafiTask repeatTicks(
+            long ticks,
+            Runnable action
+    ) {
+        return scheduler().repeatTicks(
+                ticks,
+                action
+        );
     }
 
-    public static GafiTask repeatSeconds(double seconds, Runnable action) {
-        return scheduler().repeatSeconds(seconds, action);
+    public static GafiTask repeatSeconds(
+            double seconds,
+            Runnable action
+    ) {
+        return scheduler().repeatSeconds(
+                seconds,
+                action
+        );
     }
 
     public static void broadcast(String message) {
-        Text text = Text.literal(String.valueOf(message));
+        Text text = Text.literal(
+                String.valueOf(message)
+        );
 
         server().execute(() ->
-                server().getPlayerManager().broadcast(text, false)
+                server()
+                        .getPlayerManager()
+                        .broadcast(text, false)
         );
     }
 
     public static void logInfo(String message) {
-        com.gafipro.gafiscript.GafiScriptMod.LOGGER.info("[Script] {}", message);
+        com.gafipro.gafiscript.GafiScriptMod.LOGGER.info(
+                "[Script] {}",
+                message
+        );
     }
 
     public static void logWarn(String message) {
-        com.gafipro.gafiscript.GafiScriptMod.LOGGER.warn("[Script] {}", message);
+        com.gafipro.gafiscript.GafiScriptMod.LOGGER.warn(
+                "[Script] {}",
+                message
+        );
     }
 
     public static void logError(String message) {
-        com.gafipro.gafiscript.GafiScriptMod.LOGGER.error("[Script] {}", message);
+        com.gafipro.gafiscript.GafiScriptMod.LOGGER.error(
+                "[Script] {}",
+                message
+        );
     }
 
     public static void runSync(Runnable runnable) {
