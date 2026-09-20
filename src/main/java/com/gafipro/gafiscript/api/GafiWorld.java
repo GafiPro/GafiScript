@@ -2,9 +2,14 @@ package com.gafipro.gafiscript.api;
 
 import net.minecraft.block.Block;
 import net.minecraft.block.BlockState;
+import net.minecraft.entity.Entity;
+import net.minecraft.entity.SpawnReason;
+import net.minecraft.particle.ParticleEffect;
 import net.minecraft.registry.Registries;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.world.ServerWorld;
+import net.minecraft.sound.SoundCategory;
+import net.minecraft.sound.SoundEvent;
 import net.minecraft.util.Identifier;
 import net.minecraft.util.math.BlockPos;
 
@@ -40,6 +45,10 @@ public final class GafiWorld {
         server.execute(() -> world.setTimeOfDay(time));
     }
 
+    public GafiEntities entities() {
+        return new GafiEntities(world);
+    }
+
     public boolean isAir(GafiPosition position) {
         return world.getBlockState(toBlockPos(position)).isAir();
     }
@@ -54,17 +63,117 @@ public final class GafiWorld {
         server.execute(() -> {
             Block block = Registries.BLOCK.get(Identifier.of(blockId));
             if (block == null) return;
-            world.setBlockState(toBlockPos(position), block.getDefaultState());
+            world.setBlockState(
+                    toBlockPos(position),
+                    block.getDefaultState()
+            );
         });
     }
 
     public void breakBlock(GafiPosition position, boolean drop) {
-        server.execute(() -> world.breakBlock(toBlockPos(position), drop));
+        server.execute(() ->
+                world.breakBlock(toBlockPos(position), drop)
+        );
     }
 
-    public void fill(GafiPosition from, GafiPosition to, String blockId) {
-        Block block = Registries.BLOCK.get(Identifier.of(blockId));
+    public GafiEntity spawnEntity(
+            String entityId,
+            GafiPosition position
+    ) {
+        var type = Registries.ENTITY_TYPE.get(
+                Identifier.of(entityId)
+        );
+
+        Entity entity = type.create(
+                world,
+                SpawnReason.COMMAND
+        );
+
+        if (entity == null) {
+            return null;
+        }
+
+        entity.refreshPositionAndAngles(
+                position.x(),
+                position.y(),
+                position.z(),
+                entity.getYaw(),
+                entity.getPitch()
+        );
+
+        server.execute(() -> world.spawnEntity(entity));
+        return new GafiEntity(entity);
+    }
+
+    public void spawnParticles(
+            ParticleEffect effect,
+            GafiPosition position,
+            int count,
+            double spreadX,
+            double spreadY,
+            double spreadZ,
+            double speed
+    ) {
+        server.execute(() ->
+                world.spawnParticles(
+                        effect,
+                        position.x(),
+                        position.y(),
+                        position.z(),
+                        Math.max(0, count),
+                        spreadX,
+                        spreadY,
+                        spreadZ,
+                        speed
+                )
+        );
+    }
+
+    public void playSound(
+            String soundId,
+            GafiPosition position,
+            float volume,
+            float pitch
+    ) {
+        SoundEvent sound =
+                Registries.SOUND_EVENT.get(
+                        Identifier.of(soundId)
+                );
+
+        if (sound == null) return;
+
+        playSound(sound, position, volume, pitch);
+    }
+
+    public void playSound(
+            SoundEvent sound,
+            GafiPosition position,
+            float volume,
+            float pitch
+    ) {
+        server.execute(() ->
+                world.playSound(
+                        null,
+                        toBlockPos(position),
+                        sound,
+                        SoundCategory.MASTER,
+                        volume,
+                        pitch
+                )
+        );
+    }
+
+    public void fill(
+            GafiPosition from,
+            GafiPosition to,
+            String blockId
+    ) {
+        Block block = Registries.BLOCK.get(
+                Identifier.of(blockId)
+        );
+
         if (block == null) return;
+
         BlockState state = block.getDefaultState();
 
         BlockPos a = toBlockPos(from);
@@ -78,27 +187,47 @@ public final class GafiWorld {
         int maxZ = Math.max(a.getZ(), b.getZ());
 
         server.execute(() -> {
-            long volume = (long) (maxX - minX + 1) * (maxY - minY + 1) * (maxZ - minZ + 1);
+            long volume =
+                    (long) (maxX - minX + 1) *
+                    (maxY - minY + 1) *
+                    (maxZ - minZ + 1);
+
             if (volume > 250_000L) {
-                throw new IllegalArgumentException("Region is too large: " + volume + " blocks.");
+                throw new IllegalArgumentException(
+                        "Region is too large: " +
+                        volume +
+                        " blocks."
+                );
             }
 
             for (int x = minX; x <= maxX; x++) {
                 for (int y = minY; y <= maxY; y++) {
                     for (int z = minZ; z <= maxZ; z++) {
-                        world.setBlockState(new BlockPos(x, y, z), state);
+                        world.setBlockState(
+                                new BlockPos(x, y, z),
+                                state
+                        );
                     }
                 }
             }
         });
     }
 
-    public List<GafiPosition> findBlocks(GafiPosition from, GafiPosition to, String blockId, int limit) {
-        Block block = Registries.BLOCK.get(Identifier.of(blockId));
+    public List<GafiPosition> findBlocks(
+            GafiPosition from,
+            GafiPosition to,
+            String blockId,
+            int limit
+    ) {
+        Block block = Registries.BLOCK.get(
+                Identifier.of(blockId)
+        );
+
         if (block == null) return List.of();
 
         BlockPos a = toBlockPos(from);
         BlockPos b = toBlockPos(to);
+
         int minX = Math.min(a.getX(), b.getX());
         int maxX = Math.max(a.getX(), b.getX());
         int minY = Math.min(a.getY(), b.getY());
@@ -107,13 +236,26 @@ public final class GafiWorld {
         int maxZ = Math.max(a.getZ(), b.getZ());
 
         List<GafiPosition> result = new ArrayList<>();
+
         outer:
         for (int x = minX; x <= maxX; x++) {
             for (int y = minY; y <= maxY; y++) {
                 for (int z = minZ; z <= maxZ; z++) {
-                    if (world.getBlockState(new BlockPos(x, y, z)).isOf(block)) {
-                        result.add(new GafiPosition(x, y, z));
-                        if (result.size() >= Math.max(1, limit)) break outer;
+                    if (world.getBlockState(
+                            new BlockPos(x, y, z)
+                    ).isOf(block)) {
+                        result.add(
+                                new GafiPosition(
+                                        x,
+                                        y,
+                                        z
+                                )
+                        );
+
+                        if (result.size() >=
+                                Math.max(1, limit)) {
+                            break outer;
+                        }
                     }
                 }
             }
@@ -122,7 +264,13 @@ public final class GafiWorld {
         return result;
     }
 
-    private static BlockPos toBlockPos(GafiPosition position) {
-        return BlockPos.ofFloored(position.x(), position.y(), position.z());
+    private static BlockPos toBlockPos(
+            GafiPosition position
+    ) {
+        return BlockPos.ofFloored(
+                position.x(),
+                position.y(),
+                position.z()
+        );
     }
 }
