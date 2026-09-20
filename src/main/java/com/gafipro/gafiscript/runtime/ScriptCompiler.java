@@ -58,7 +58,8 @@ public final class ScriptCompiler {
         return compileUnits(
                 server,
                 List.of(new SourceUnit(className, instrumented)),
-                className
+                className,
+                List.of()
         );
     }
 
@@ -68,11 +69,14 @@ public final class ScriptCompiler {
     ) {
         if (!Files.isDirectory(projectDirectory)) {
             return CompilationResult.failure(
-                    "Project directory does not exist: " + projectDirectory
+                    "Project directory does not exist: " +
+                            projectDirectory
             );
         }
 
-        Path manifest = projectDirectory.resolve("manifest.json");
+        Path manifest =
+                projectDirectory.resolve("manifest.json");
+
         if (!Files.isRegularFile(manifest)) {
             return CompilationResult.failure(
                     "Project manifest.json is missing."
@@ -80,48 +84,49 @@ public final class ScriptCompiler {
         }
 
         final ScriptProject project;
+
         try {
-            project = ScriptProject.load(manifest);
+            project =
+                    ScriptProject.load(manifest);
         } catch (Exception exception) {
-            return CompilationResult.failure(exception.getMessage());
-        }
-
-        Path sourceDirectory = projectDirectory.resolve("src");
-
-        if (!Files.isDirectory(sourceDirectory)) {
             return CompilationResult.failure(
-                    "Project src/ directory is missing."
+                    exception.getMessage()
             );
         }
 
-        List<SourceUnit> units = new ArrayList<>();
+        try {
+            ScriptProjects.DependencySet resolved =
+                    ScriptProjects.resolveDependencies(
+                            server,
+                            project.name()
+                    );
 
-        try (var stream = Files.walk(sourceDirectory)) {
-            List<Path> javaFiles = stream
-                    .filter(Files::isRegularFile)
-                    .filter(path -> path.toString().endsWith(".java"))
-                    .sorted()
-                    .toList();
-
-            if (javaFiles.isEmpty()) {
+            if (resolved.sourceFiles().isEmpty()) {
                 return CompilationResult.failure(
                         "Project contains no Java source files."
                 );
             }
 
-            for (Path file : javaFiles) {
-                String source = Files.readString(
-                        file,
-                        StandardCharsets.UTF_8
-                );
+            List<SourceUnit> units =
+                    new ArrayList<>();
+
+            for (Path file :
+                    resolved.sourceFiles()) {
+
+                String source =
+                        Files.readString(
+                                file,
+                                StandardCharsets.UTF_8
+                        );
 
                 ScriptSecurity.Validation security =
                         ScriptSecurity.validate(source);
 
                 if (!security.valid()) {
                     return CompilationResult.failure(
-                            file.getFileName() + ": " +
-                            security.message()
+                            file.getFileName() +
+                                    ": " +
+                                    security.message()
                     );
                 }
 
@@ -129,10 +134,16 @@ public final class ScriptCompiler {
                     StaticJavaParser.parse(source);
                 } catch (ParseProblemException exception) {
                     return CompilationResult.failure(
-                            file.getFileName() + ": " +
-                            exception.getProblems().stream()
-                                    .map(Object::toString)
-                                    .collect(Collectors.joining("\n"))
+                            file.getFileName() +
+                                    ": " +
+                                    exception.getProblems()
+                                            .stream()
+                                            .map(Object::toString)
+                                            .collect(
+                                                    Collectors.joining(
+                                                            "\n"
+                                                    )
+                                            )
                     );
                 }
 
@@ -150,31 +161,34 @@ public final class ScriptCompiler {
                 units.add(
                         new SourceUnit(
                                 binaryName,
-                                ScriptDebugInstrumentation.instrument(
-                                        source,
-                                        binaryName
-                                )
+                                ScriptDebugInstrumentation
+                                        .instrument(
+                                                source,
+                                                binaryName
+                                        )
                         )
                 );
             }
+
+            return compileUnits(
+                    server,
+                    units,
+                    project.mainClass(),
+                    resolved.libraryJars()
+            );
         } catch (Exception exception) {
             return CompilationResult.failure(
-                    "Could not read project sources: " +
-                    exception.getMessage()
+                    "Could not resolve/compile project: " +
+                            exception.getMessage()
             );
         }
-
-        return compileUnits(
-                server,
-                units,
-                project.mainClass()
-        );
     }
 
     private static CompilationResult compileUnits(
             MinecraftServer server,
             List<SourceUnit> units,
-            String mainClass
+            String mainClass,
+            List<Path> libraryJars
     ) {
         Path outputDirectory = server.getRunDirectory()
                 .resolve("gafiscript")
@@ -220,7 +234,7 @@ public final class ScriptCompiler {
                     "-parameters",
                     "-source", "21",
                     "-target", "21",
-                    "-classpath", buildClassPath()
+                    "-classpath", buildClassPath(libraryJars)
             );
 
             List<JavaFileObject> sourceObjects = units.stream()
@@ -357,7 +371,9 @@ public final class ScriptCompiler {
                 : packageName + "." + className;
     }
 
-    private static String buildClassPath() {
+    private static String buildClassPath(
+            List<Path> libraryJars
+    ) {
         List<String> entries = new ArrayList<>();
 
         String systemClassPath =
@@ -365,6 +381,16 @@ public final class ScriptCompiler {
 
         if (!systemClassPath.isBlank()) {
             entries.add(systemClassPath);
+        }
+
+        if (libraryJars != null) {
+            libraryJars.stream()
+                    .filter(Files::isRegularFile)
+                    .forEach(path ->
+                            entries.add(
+                                    path.toAbsolutePath().toString()
+                            )
+                    );
         }
 
         for (Class<?> type : List.of(
