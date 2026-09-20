@@ -238,6 +238,18 @@ public final class ScriptCompiler {
                 );
             }
 
+            var bytecodeValidation =
+                    com.gafipro.gafiscript.security.ScriptBytecodeValidator
+                            .validateDirectory(outputDirectory);
+
+            if (!bytecodeValidation.valid()) {
+                deleteRecursively(outputDirectory);
+                return CompilationResult.failure(
+                        "Security validation failed: " +
+                                bytecodeValidation.message()
+                );
+            }
+
             RestrictedClassLoader classLoader =
                     new RestrictedClassLoader(
                             new URL[]{outputDirectory.toUri().toURL()},
