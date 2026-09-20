@@ -49,9 +49,15 @@ public final class ScriptCompiler {
         }
 
         String className = findMainClass(source, scriptName);
+        String instrumented =
+                ScriptDebugInstrumentation.instrument(
+                        source,
+                        scriptName
+                );
+
         return compileUnits(
                 server,
-                List.of(new SourceUnit(className, source)),
+                List.of(new SourceUnit(className, instrumented)),
                 className
         );
     }
@@ -130,18 +136,24 @@ public final class ScriptCompiler {
                     );
                 }
 
+                String binaryName =
+                        findMainClass(
+                                source,
+                                file.getFileName()
+                                        .toString()
+                                        .replaceFirst(
+                                                "\\.java$",
+                                                ""
+                                        )
+                        );
+
                 units.add(
                         new SourceUnit(
-                                findMainClass(
+                                binaryName,
+                                ScriptDebugInstrumentation.instrument(
                                         source,
-                                        file.getFileName()
-                                                .toString()
-                                                .replaceFirst(
-                                                        "\\.java$",
-                                                        ""
-                                                )
-                                ),
-                                source
+                                        binaryName
+                                )
                         )
                 );
             }
