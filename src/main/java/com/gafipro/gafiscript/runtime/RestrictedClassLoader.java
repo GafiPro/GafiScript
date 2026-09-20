@@ -20,19 +20,24 @@ public final class RestrictedClassLoader extends URLClassLoader {
     }
 
     @Override
-    protected Class<?> loadClass(String name, boolean resolve) throws ClassNotFoundException {
+    protected Class<?> loadClass(String name, boolean resolve)
+            throws ClassNotFoundException {
+
         for (String prefix : BLOCKED_PREFIXES) {
             if (name.startsWith(prefix)) {
-                throw new ClassNotFoundException("Blocked class: " + name);
+                throw new ClassNotFoundException(
+                        "Blocked class: " + name
+                );
             }
         }
 
         if (name.equals("java.lang.Runtime")
                 || name.equals("java.lang.ProcessBuilder")
-                || name.equals("java.lang.System")
                 || name.equals("java.lang.ClassLoader")
                 || name.equals("jdk.internal.misc.Unsafe")) {
-            throw new ClassNotFoundException("Blocked class: " + name);
+            throw new ClassNotFoundException(
+                    "Blocked class: " + name
+            );
         }
 
         return super.loadClass(name, resolve);
