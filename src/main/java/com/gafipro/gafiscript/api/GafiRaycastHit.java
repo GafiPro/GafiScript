@@ -37,7 +37,7 @@ public record GafiRaycastHit(
                 net.minecraft.registry.Registries.BLOCK
                         .getId(state.getBlock())
                         .toString(),
-                result.getSide().getName()
+                result.getSide().asString()
         );
     }
 }
