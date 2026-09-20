@@ -178,7 +178,7 @@ public final class ScriptStateStore {
         return current;
     }
 
-    private static String[] splitKey(String key) {
+    static String[] splitKey(String key) {
         if (key == null || key.isBlank()) {
             return new String[0];
         }
