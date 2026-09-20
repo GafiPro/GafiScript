@@ -7,14 +7,17 @@ import net.minecraft.server.command.ServerCommandSource;
 public final class GafiCommandHandle {
     private final CommandDispatcher<ServerCommandSource> dispatcher;
     private final String name;
+    private final String ownerScript;
     private volatile boolean registered;
 
     GafiCommandHandle(
             CommandDispatcher<ServerCommandSource> dispatcher,
-            String name
+            String name,
+            String ownerScript
     ) {
         this.dispatcher = dispatcher;
         this.name = name;
+        this.ownerScript = ownerScript;
         this.registered = true;
     }
 
@@ -24,6 +27,10 @@ public final class GafiCommandHandle {
 
     public boolean isRegistered() {
         return registered;
+    }
+
+    public String ownerScript() {
+        return ownerScript;
     }
 
     public void unregister() {
