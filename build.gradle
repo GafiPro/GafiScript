@@ -28,6 +28,7 @@ dependencies {
     include("com.github.javaparser:javaparser-core:3.28.2")
 
     testImplementation("org.junit.jupiter:junit-jupiter:5.14.4")
+    testRuntimeOnly("org.junit.platform:junit-platform-launcher:1.14.4")
 }
 
 processResources {
