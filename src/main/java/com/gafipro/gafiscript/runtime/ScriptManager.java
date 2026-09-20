@@ -210,6 +210,47 @@ public final class ScriptManager {
         );
     }
 
+    public static String exportProject(
+            MinecraftServer server,
+            String projectName
+    ) {
+        try {
+            Path archive = ScriptProjectArchive.exportProject(
+                    server,
+                    projectName
+            );
+            return "Project exported: " + archive;
+        } catch (Exception exception) {
+            return "Project export failed: " + exception.getMessage();
+        }
+    }
+
+    public static String importProject(
+            MinecraftServer server,
+            String archivePath
+    ) {
+        try {
+            Path archive = Path.of(archivePath).toAbsolutePath().normalize();
+            Path allowedRoot = server.getRunDirectory()
+                    .resolve("gafiscript")
+                    .resolve("exports")
+                    .toAbsolutePath()
+                    .normalize();
+
+            if (!archive.startsWith(allowedRoot)) {
+                return "Imports are restricted to the GafiScript exports directory.";
+            }
+
+            Path project = ScriptProjectArchive.importProject(
+                    server,
+                    archive
+            );
+            return "Project imported: " + project;
+        } catch (Exception exception) {
+            return "Project import failed: " + exception.getMessage();
+        }
+    }
+
     public static void stopAll() {
         ACTIVE.keySet().forEach(
                 ScriptManager::stop
