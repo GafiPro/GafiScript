@@ -222,11 +222,14 @@ public final class GafiWorld {
             GafiPosition position
     ) {
         server.execute(() ->
-                world.getLevelProperties()
-                        .setSpawnPos(
+                world.setSpawnPoint(
+                        net.minecraft.world.WorldProperties.SpawnPoint.create(
+                                world.getRegistryKey(),
                                 toBlockPos(position),
+                                0.0f,
                                 0.0f
                         )
+                )
         );
     }
 
@@ -283,27 +286,48 @@ public final class GafiWorld {
     public boolean gameRule(
             String name
     ) {
-        return world.getGameRules()
-                .getBoolean(
-                        net.minecraft.world.rule.GameRules.get(
-                                name
-                        )
-                );
+        net.minecraft.world.rule.GameRule<?> rule =
+                findGameRule(name);
+
+        if (rule == null) {
+            throw new IllegalArgumentException(
+                    "Unknown gamerule: " + name
+            );
+        }
+
+        Object value =
+                world.getGameRules().getValue(rule);
+
+        if (!(value instanceof Boolean booleanValue)) {
+            throw new IllegalArgumentException(
+                    "Gamerule is not boolean: " +
+                            name
+            );
+        }
+
+        return booleanValue;
     }
 
+    @SuppressWarnings({"rawtypes", "unchecked"})
     public void setGameRule(
             String name,
             boolean value
     ) {
+        net.minecraft.world.rule.GameRule<?> rule =
+                findGameRule(name);
+
+        if (rule == null) {
+            throw new IllegalArgumentException(
+                    "Unknown gamerule: " + name
+            );
+        }
+
         server.execute(() ->
-                world.getGameRules()
-                        .get(
-                                net.minecraft.world.GameRules.get(name)
-                        )
-                        .set(
-                                value,
-                                server
-                        )
+                world.getGameRules().setValue(
+                        (net.minecraft.world.rule.GameRule) rule,
+                        value,
+                        server
+                )
         );
     }
 
