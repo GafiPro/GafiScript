@@ -207,7 +207,9 @@ public final class GafiWorld {
 
     public GafiPosition spawnPoint() {
         BlockPos pos =
-                world.getSpawnPos();
+                world.getLevelProperties()
+                        .getSpawnPoint()
+                        .getPos();
 
         return new GafiPosition(
                 pos.getX(),
@@ -220,10 +222,11 @@ public final class GafiWorld {
             GafiPosition position
     ) {
         server.execute(() ->
-                world.setSpawnPos(
-                        toBlockPos(position),
-                        0.0f
-                )
+                world.getLevelProperties()
+                        .setSpawnPos(
+                                toBlockPos(position),
+                                0.0f
+                        )
         );
     }
 
@@ -282,7 +285,7 @@ public final class GafiWorld {
     ) {
         return world.getGameRules()
                 .getBoolean(
-                        net.minecraft.world.GameRules.get(
+                        net.minecraft.world.rule.GameRules.get(
                                 name
                         )
                 );
@@ -517,6 +520,20 @@ public final class GafiWorld {
         }
 
         return result;
+    }
+
+    @SuppressWarnings({"rawtypes", "unchecked"})
+    private net.minecraft.world.rule.GameRule findGameRule(
+            String name
+    ) {
+        for (var rule : world.getGameRules().streamRules().toList()) {
+            if (rule.getId().toString().equals(name) ||
+                    rule.getId().getPath().equals(name)) {
+                return rule;
+            }
+        }
+
+        return null;
     }
 
     private static BlockPos toBlockPos(
