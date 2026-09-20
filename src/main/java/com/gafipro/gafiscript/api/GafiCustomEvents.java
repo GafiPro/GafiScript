@@ -77,6 +77,10 @@ public final class GafiCustomEvents {
         return count;
     }
 
+    public void clearAll() {
+        listeners.clear();
+    }
+
     public void unregisterOwnedBy(
             String scriptName
     ) {
