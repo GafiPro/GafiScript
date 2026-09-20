@@ -47,10 +47,24 @@ public final class GafiCommands {
                 );
 
         GafiCommandHandle handle =
-                new GafiCommandHandle(dispatcher, safeName);
+                new GafiCommandHandle(
+                        dispatcher,
+                        safeName,
+                        com.gafipro.gafiscript.runtime.GafiScriptContext.currentScript()
+                );
 
         handles.add(handle);
         return handle;
+    }
+
+    public void unregisterOwnedBy(String scriptName) {
+        handles.removeIf(handle -> {
+            if (!java.util.Objects.equals(handle.ownerScript(), scriptName)) {
+                return false;
+            }
+            handle.unregister();
+            return true;
+        });
     }
 
     public void unregisterAll() {
