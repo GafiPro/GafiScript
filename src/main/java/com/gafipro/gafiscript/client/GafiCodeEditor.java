@@ -88,6 +88,7 @@ public final class GafiCodeEditor {
     private int cursorLine;
     private int cursorColumn;
     private int selectionAnchor = -1;
+    private boolean mouseSelecting;
     private int x;
     private int y;
     private int width;
@@ -131,6 +132,7 @@ public final class GafiCodeEditor {
         cursorLine = 0;
         cursorColumn = 0;
         selectionAnchor = -1;
+        mouseSelecting = false;
         undoStack.clear();
         redoStack.clear();
         completionVisible = false;
@@ -344,43 +346,87 @@ public final class GafiCodeEditor {
             double mouseY,
             int button
     ) {
-        if (mouseX < x ||
-                mouseX > x + width ||
-                mouseY < y ||
-                mouseY > y + height) {
+        if (button != GLFW.GLFW_MOUSE_BUTTON_1 ||
+                textRenderer == null ||
+                !isInsideEditor(mouseX, mouseY)) {
             return;
         }
 
-        int lineHeight = 10;
+        int[] position = mouseToCursor(mouseX, mouseY);
+        setCursor(position[0], position[1], false);
+        mouseSelecting = true;
+        completionVisible = false;
+    }
 
-        int line =
-                Math.max(
-                        0,
-                        (int) ((mouseY - y) / lineHeight)
-                );
-
-        if (line >= lines.size()) {
-            line = lines.size() - 1;
+    public boolean mouseDragged(
+            double mouseX,
+            double mouseY,
+            int button
+    ) {
+        if (button != GLFW.GLFW_MOUSE_BUTTON_1 ||
+                textRenderer == null ||
+                !mouseSelecting) {
+            return false;
         }
 
+        int[] position = mouseToCursor(mouseX, mouseY);
+        setCursor(position[0], position[1], true);
+        completionVisible = false;
+        return true;
+    }
+
+    public boolean mouseReleased(int button) {
+        if (button != GLFW.GLFW_MOUSE_BUTTON_1) {
+            return false;
+        }
+
+        boolean wasSelecting = mouseSelecting;
+        mouseSelecting = false;
+        return wasSelecting;
+    }
+
+    private boolean isInsideEditor(double mouseX, double mouseY) {
+        return mouseX >= x &&
+                mouseX <= x + width &&
+                mouseY >= y &&
+                mouseY <= y + height;
+    }
+
+    private int[] mouseToCursor(double mouseX, double mouseY) {
+        int lineHeight = 10;
+        int firstLine = firstVisibleLine();
+
+        double clampedX = Math.max(
+                x + 36,
+                Math.min(mouseX, x + width)
+        );
+        double clampedY = Math.max(
+                y,
+                Math.min(mouseY, y + height - 1)
+        );
+
+        int line = Math.max(
+                0,
+                Math.min(
+                        lines.size() - 1,
+                        firstLine + (int) ((clampedY - y) / lineHeight)
+                )
+        );
+
         String current = lines.get(line);
-        int target =
-                Math.max(
-                        0,
-                        (int) (mouseX - x - 34)
-                );
+        int target = Math.max(
+                0,
+                (int) (clampedX - x - 36)
+        );
 
         int column = 0;
         int bestDistance = Integer.MAX_VALUE;
 
         for (int i = 0; i <= current.length(); i++) {
-            int measured =
-                    textRenderer.getWidth(
-                            current.substring(0, i)
-                    );
-
-            int distance =
-                    Math.abs(measured - target);
+            int measured = textRenderer.getWidth(
+                    current.substring(0, i)
+            );
+            int distance = Math.abs(measured - target);
 
             if (distance < bestDistance) {
                 bestDistance = distance;
@@ -388,16 +434,11 @@ public final class GafiCodeEditor {
             }
         }
 
-        setCursor(
-                line,
-                Math.min(column, current.length()),
-                false
-        );
-
-        completionVisible = false;
+        return new int[]{line, Math.min(column, current.length())};
     }
 
     public void selectAll() {
+        mouseSelecting = false;
         selectionAnchor = 0;
         setCursorFromOffset(
                 getText().length(),
@@ -792,6 +833,66 @@ public final class GafiCodeEditor {
         redoStack.clear();
     }
 
+    private int firstVisibleLine() {
+        int lineHeight = 10;
+        int maxLines = Math.max(1, height / lineHeight);
+        return Math.max(0, cursorLine - maxLines + 2);
+    }
+
+    private void drawSelectionHighlight(
+            DrawContext context,
+            int lineIndex,
+            int drawX,
+            int drawY
+    ) {
+        if (!hasSelection()) {
+            return;
+        }
+
+        int lineStart = lineStartOffset(lineIndex);
+        int lineEnd = lineStart + lines.get(lineIndex).length();
+        int start = Math.max(selectionStart(), lineStart);
+        int end = Math.min(selectionEnd(), lineEnd);
+
+        if (start > end ||
+                (start == end && selectionEnd() != lineEnd)) {
+            return;
+        }
+
+        String line = lines.get(lineIndex);
+        int startColumn = Math.max(0, start - lineStart);
+        int endColumn = Math.max(startColumn, end - lineStart);
+
+        int startX = drawX + textRenderer.getWidth(
+                line.substring(0, Math.min(startColumn, line.length()))
+        );
+        int endX = drawX + textRenderer.getWidth(
+                line.substring(0, Math.min(endColumn, line.length()))
+        );
+
+        if (endX <= startX) {
+            endX = startX + 3;
+        }
+
+        context.fill(
+                startX,
+                drawY - 1,
+                endX,
+                drawY + 9,
+                0xAA3A506B
+        );
+    }
+
+    private int lineStartOffset(int lineIndex) {
+        int offset = 0;
+
+        for (int i = 0; i < lineIndex; i++) {
+            offset += lines.get(i).length() + 1;
+        }
+
+        return offset;
+    }
+
     public void render(
             DrawContext context
     ) {
@@ -823,11 +924,7 @@ public final class GafiCodeEditor {
                         height / lineHeight
                 );
 
-        int firstLine =
-                Math.max(
-                        0,
-                        cursorLine - maxLines + 2
-                );
+        int firstLine = firstVisibleLine();
 
         for (int visible = 0;
              visible < maxLines;
@@ -845,18 +942,12 @@ public final class GafiCodeEditor {
                     visible * lineHeight +
                     2;
 
-            boolean selectedLine =
-                    lineIntersectsSelection(lineIndex);
-
-            if (selectedLine) {
-                context.fill(
-                        x + 32,
-                        drawY - 1,
-                        x + width,
-                        drawY + lineHeight,
-                        0x553A506B
-                );
-            }
+            drawSelectionHighlight(
+                    context,
+                    lineIndex,
+                    x + 36,
+                    drawY
+            );
 
             context.drawText(
                     textRenderer,
