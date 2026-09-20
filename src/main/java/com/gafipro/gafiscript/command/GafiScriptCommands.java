@@ -177,6 +177,48 @@ public final class GafiScriptCommands {
                                                                     );
                                                                     return 1;
                                                                 })))
+                                                .then(literal("export")
+                                                        .then(argument("project", StringArgumentType.word())
+                                                                .executes(context -> {
+                                                                    String name =
+                                                                            StringArgumentType.getString(
+                                                                                    context,
+                                                                                    "project"
+                                                                            );
+
+                                                                    String result =
+                                                                            ScriptManager.exportProject(
+                                                                                    context.getSource().getServer(),
+                                                                                    name
+                                                                            );
+
+                                                                    context.getSource().sendFeedback(
+                                                                            () -> Text.literal(result),
+                                                                            false
+                                                                    );
+                                                                    return 1;
+                                                                })))
+                                                .then(literal("import")
+                                                        .then(argument("archive", StringArgumentType.string())
+                                                                .executes(context -> {
+                                                                    String archive =
+                                                                            StringArgumentType.getString(
+                                                                                    context,
+                                                                                    "archive"
+                                                                            );
+
+                                                                    String result =
+                                                                            ScriptManager.importProject(
+                                                                                    context.getSource().getServer(),
+                                                                                    archive
+                                                                            );
+
+                                                                    context.getSource().sendFeedback(
+                                                                            () -> Text.literal(result),
+                                                                            false
+                                                                    );
+                                                                    return 1;
+                                                                })))
                                         )
                         )
         );
@@ -185,7 +227,7 @@ public final class GafiScriptCommands {
     private static void sendHelp(ServerCommandSource source) {
         source.sendFeedback(
                 () -> Text.literal(
-                        "/gafiscript help | list | run <script> | stop <script> | info <script> | project <list|create|run|reload>"
+                        "/gafiscript help | list | run <script> | stop <script> | info <script> | project <list|create|run|reload|export|import>"
                 ),
                 false
         );
