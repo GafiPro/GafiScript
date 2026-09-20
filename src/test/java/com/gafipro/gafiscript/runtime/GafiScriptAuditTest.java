@@ -284,6 +284,23 @@ class GafiScriptAuditTest {
         java.util.LinkedHashSet<String> entries =
                 new java.util.LinkedHashSet<>();
 
+        String configuredClassPath =
+                System.getProperty(
+                        "gafiscript.test.classpath",
+                        ""
+                );
+
+        if (!configuredClassPath.isBlank()) {
+            for (String entry :
+                    configuredClassPath.split(
+                            java.io.File.pathSeparator
+                    )) {
+                if (!entry.isBlank()) {
+                    entries.add(entry);
+                }
+            }
+        }
+
         String systemClassPath =
                 System.getProperty("java.class.path", "");
 
