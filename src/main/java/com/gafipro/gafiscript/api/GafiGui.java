@@ -12,8 +12,8 @@ import net.minecraft.screen.SimpleNamedScreenHandlerFactory;
 import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.text.Text;
 
+import java.util.Map;
 import java.util.Set;
-import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Consumer;
 
@@ -28,6 +28,11 @@ public final class GafiGui {
 
     private Consumer<GafiGuiClickEvent> clickListener;
     private Consumer<GafiGuiCloseEvent> closeListener;
+
+    private final Map<ServerPlayerEntity, GenericContainerScreenHandler> openHandlers =
+            new ConcurrentHashMap<>();
+
+    private volatile boolean closing;
 
     public GafiGui(String title, int rows) {
         if (rows < 1 || rows > 6) {
@@ -134,7 +139,22 @@ public final class GafiGui {
     }
 
     public void close() {
-        ACTIVE.remove(this);
+        closing = true;
+        try {
+            for (var entry : openHandlers.entrySet()) {
+                ServerPlayerEntity player = entry.getKey();
+                GenericContainerScreenHandler handler = entry.getValue();
+
+                if (player.currentScreenHandler == handler) {
+                    player.closeHandledScreen();
+                }
+            }
+
+            openHandlers.clear();
+            ACTIVE.remove(this);
+        } finally {
+            closing = false;
+        }
     }
 
     public String ownerScript() {
@@ -146,7 +166,8 @@ public final class GafiGui {
             PlayerInventory playerInventory,
             PlayerEntity player
     ) {
-        return new GenericContainerScreenHandler(
+        GenericContainerScreenHandler handler =
+                new GenericContainerScreenHandler(
                 switch (rows) {
                     case 1 -> ScreenHandlerType.GENERIC_9X1;
                     case 2 -> ScreenHandlerType.GENERIC_9X2;
@@ -160,6 +181,12 @@ public final class GafiGui {
                 inventory,
                 rows
         ) {
+            {
+                if (player instanceof ServerPlayerEntity serverPlayer) {
+                    openHandlers.put(serverPlayer, this);
+                }
+            }
+
             @Override
             public void onSlotClick(
                     int slotId,
@@ -198,21 +225,29 @@ public final class GafiGui {
             public void onClosed(PlayerEntity closingPlayer) {
                 super.onClosed(closingPlayer);
 
-                if (closeListener != null &&
-                        closingPlayer instanceof ServerPlayerEntity serverPlayer) {
-                    runOwned(() ->
-                            closeListener.accept(
-                                    new GafiGuiCloseEvent(
-                                            GafiGui.this,
-                                            new GafiPlayer(serverPlayer)
-                                    )
-                            )
-                    );
+                if (closingPlayer instanceof ServerPlayerEntity serverPlayer) {
+                    openHandlers.remove(serverPlayer, this);
+
+                    if (!closing &&
+                            closeListener != null) {
+                        runOwned(() ->
+                                closeListener.accept(
+                                        new GafiGuiCloseEvent(
+                                                GafiGui.this,
+                                                new GafiPlayer(serverPlayer)
+                                        )
+                                )
+                        );
+                    }
                 }
 
-                ACTIVE.remove(GafiGui.this);
+                if (openHandlers.isEmpty()) {
+                    ACTIVE.remove(GafiGui.this);
+                }
             }
         };
+
+        return handler;
     }
 
     private void runOwned(Runnable action) {
