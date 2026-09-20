@@ -28,6 +28,9 @@ public final class Gafi {
     public static void detachServer(MinecraftServer minecraftServer) {
         if (server == minecraftServer) {
             COMMANDS.unregisterAll();
+            CUSTOM_EVENTS.clearAll();
+            PROFILER.reset();
+            WATCHDOG.reset();
             SCHEDULER.detach();
             server = null;
         }
