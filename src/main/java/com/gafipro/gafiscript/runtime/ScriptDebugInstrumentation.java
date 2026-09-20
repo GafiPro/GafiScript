@@ -1,3 +1,4 @@
+
 package com.gafipro.gafiscript.runtime;
 
 import com.github.javaparser.StaticJavaParser;
@@ -22,53 +23,36 @@ public final class ScriptDebugInstrumentation {
         }
 
         try {
-            CompilationUnit unit =
-                    StaticJavaParser.parse(source);
-
+            CompilationUnit unit = StaticJavaParser.parse(source);
             List<Insertion> insertions = new ArrayList<>();
 
-            for (Statement statement :
-                    unit.findAll(Statement.class)) {
-
-                if (!statement.getBegin().isPresent()) {
+            for (Statement statement : unit.findAll(Statement.class)) {
+                if (statement.getBegin().isEmpty()) {
                     continue;
                 }
 
-                if (statement.toString().contains(
-                        "GafiDebugger.check("
-                )) {
+                if (statement.toString().contains("GafiDebugger.check(")) {
                     continue;
                 }
 
-                Node parent =
-                        statement.getParentNode()
-                                .orElse(null);
-
+                Node parent = statement.getParentNode().orElse(null);
                 if (!(parent instanceof BlockStmt block)) {
                     continue;
                 }
 
-                int line =
-                        statement.getBegin()
-                                .get()
-                                .line;
-
-                int index =
-                        block.getStatements()
-                                .indexOf(statement);
-
+                int index = block.getStatements().indexOf(statement);
                 if (index < 0) {
                     continue;
                 }
 
-                Statement probe =
-                        StaticJavaParser.parseStatement(
-                                "com.gafipro.gafiscript.api.GafiDebugger.check(" +
-                                        quote(scriptName) +
-                                        ", " +
-                                        line +
-                                        ");"
-                        );
+                int line = statement.getBegin().get().line;
+                Statement probe = StaticJavaParser.parseStatement(
+                        "com.gafipro.gafiscript.api.GafiDebugger.check(" +
+                                quote(scriptName) +
+                                ", " +
+                                line +
+                                ");"
+                );
 
                 insertions.add(
                         new Insertion(
@@ -79,16 +63,18 @@ public final class ScriptDebugInstrumentation {
                 );
             }
 
-            // Insert backwards within each block so indices remain stable.
             insertions.sort(
-                    Comparator.comparingInt(
-                            (Insertion insertion) ->
-                                    System.identityHashCode(
-                                            insertion.block()
-                                    )
-                    ).thenComparing(
-                            Insertion::index
-                    ).reversed()
+                    Comparator
+                            .comparingInt(
+                                    (Insertion value) ->
+                                            System.identityHashCode(
+                                                    value.block()
+                                            )
+                            )
+                            .thenComparing(
+                                    Insertion::index
+                            )
+                            .reversed()
             );
 
             for (Insertion insertion : insertions) {
@@ -108,11 +94,10 @@ public final class ScriptDebugInstrumentation {
         String safe = value == null ? "" : value;
 
         return """ +
-                safe.replace("\", "\\")
+                safe.replace("\\", "\\\\")
                         .replace(""", "\"")
-                        .replace("", "\r")
-                        .replace("
-", "\n") +
+                        .replace("\r", "\\r")
+                        .replace("\n", "\\n") +
                 """;
     }
 
