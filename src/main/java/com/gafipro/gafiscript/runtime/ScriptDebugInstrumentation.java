@@ -7,6 +7,7 @@ import com.github.javaparser.ast.stmt.BlockStmt;
 import com.github.javaparser.ast.stmt.Statement;
 
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 
 public final class ScriptDebugInstrumentation {
@@ -16,8 +17,7 @@ public final class ScriptDebugInstrumentation {
             String source,
             String scriptName
     ) {
-        if (source == null ||
-                source.isBlank()) {
+        if (source == null || source.isBlank()) {
             return source;
         }
 
@@ -25,12 +25,11 @@ public final class ScriptDebugInstrumentation {
             CompilationUnit unit =
                     StaticJavaParser.parse(source);
 
-            List<Statement> originals =
-                    new ArrayList<>(
-                            unit.findAll(Statement.class)
-                    );
+            List<Insertion> insertions = new ArrayList<>();
 
-            for (Statement statement : originals) {
+            for (Statement statement :
+                    unit.findAll(Statement.class)) {
+
                 if (!statement.getBegin().isPresent()) {
                     continue;
                 }
@@ -54,6 +53,14 @@ public final class ScriptDebugInstrumentation {
                                 .get()
                                 .line;
 
+                int index =
+                        block.getStatements()
+                                .indexOf(statement);
+
+                if (index < 0) {
+                    continue;
+                }
+
                 Statement probe =
                         StaticJavaParser.parseStatement(
                                 "com.gafipro.gafiscript.api.GafiDebugger.check(" +
@@ -63,16 +70,32 @@ public final class ScriptDebugInstrumentation {
                                         ");"
                         );
 
-                int index =
-                        block.getStatements()
-                                .indexOf(statement);
+                insertions.add(
+                        new Insertion(
+                                block,
+                                index,
+                                probe
+                        )
+                );
+            }
 
-                if (index >= 0) {
-                    block.addStatement(
-                            index,
-                            probe
-                    );
-                }
+            // Insert backwards within each block so indices remain stable.
+            insertions.sort(
+                    Comparator.comparingInt(
+                            (Insertion insertion) ->
+                                    System.identityHashCode(
+                                            insertion.block()
+                                    )
+                    ).thenComparing(
+                            Insertion::index
+                    ).reversed()
+            );
+
+            for (Insertion insertion : insertions) {
+                insertion.block().addStatement(
+                        insertion.index(),
+                        insertion.probe()
+                );
             }
 
             return unit.toString();
@@ -81,17 +104,21 @@ public final class ScriptDebugInstrumentation {
         }
     }
 
-    private static String quote(
-            String value
-    ) {
+    private static String quote(String value) {
+        String safe = value == null ? "" : value;
+
         return """ +
-                value.replace(
-                        "\",
-                        "\\"
-                ).replace(
-                        """,
-                        "\""
-                ) +
+                safe.replace("\", "\\")
+                        .replace(""", "\"")
+                        .replace("", "\r")
+                        .replace("
+", "\n") +
                 """;
     }
+
+    private record Insertion(
+            BlockStmt block,
+            int index,
+            Statement probe
+    ) {}
 }
