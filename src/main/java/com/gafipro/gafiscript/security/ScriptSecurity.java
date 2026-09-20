@@ -1,5 +1,8 @@
 package com.gafipro.gafiscript.security;
 
+import com.github.javaparser.StaticJavaParser;
+import com.github.javaparser.ParseProblemException;
+
 import java.util.List;
 import java.util.Locale;
 
@@ -37,9 +40,31 @@ public final class ScriptSecurity {
         }
 
         String lower = source.toLowerCase(Locale.ROOT);
+
+        // Java processes Unicode escapes before parsing. Normalize the parsed
+        // source as well so a forbidden API cannot be hidden as
+        // "java.lang.\\u0069nvoke" or a similar escaped identifier.
+        String normalized = lower;
+        try {
+            normalized =
+                    StaticJavaParser
+                            .parse(source)
+                            .toString()
+                            .toLowerCase(Locale.ROOT);
+        } catch (ParseProblemException ignored) {
+            // The compiler will report syntax errors later; still perform the
+            // raw-source checks here.
+        }
+
         for (String forbidden : FORBIDDEN) {
-            if (lower.contains(forbidden.toLowerCase(Locale.ROOT))) {
-                return Validation.fail("Blocked API/reference: " + forbidden);
+            String token = forbidden.toLowerCase(Locale.ROOT);
+
+            if (lower.contains(token) ||
+                    normalized.contains(token)) {
+                return Validation.fail(
+                        "Blocked API/reference: " +
+                                forbidden
+                );
             }
         }
 
