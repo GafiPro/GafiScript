@@ -44,26 +44,30 @@ public final class GafiSequence {
     }
 
     private void scheduleStep(int index) {
-        if (index >= steps.size() || group.activeCount() < 0) {
+        if (index >= steps.size()) {
             return;
         }
 
         Step step = steps.get(index);
-        GafiTask task = scheduler.delayTicks(step.delayTicks(), () -> {
-            try {
-                step.action().run();
-            } catch (Throwable throwable) {
-                com.gafipro.gafiscript.GafiScriptMod.LOGGER.error(
-                        "GafiScript sequence step failed", throwable
-                );
-                cancel();
-                return;
-            }
+        GafiTask task = scheduler.delayTicks(
+                step.delayTicks(),
+                () -> {
+                    try {
+                        step.action().run();
+                    } catch (Throwable throwable) {
+                        com.gafipro.gafiscript.GafiScriptMod.LOGGER.error(
+                                "GafiScript sequence step failed",
+                                throwable
+                        );
+                        cancel();
+                        return;
+                    }
 
-            if (index + 1 < steps.size()) {
-                scheduleStep(index + 1);
-            }
-        });
+                    if (index + 1 < steps.size()) {
+                        scheduleStep(index + 1);
+                    }
+                }
+        );
 
         group.add(task);
     }
