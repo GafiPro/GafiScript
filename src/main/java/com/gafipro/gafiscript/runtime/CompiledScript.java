@@ -34,6 +34,44 @@ public final class CompiledScript implements AutoCloseable {
         }
     }
 
+    public Object invoke(String methodName, Object... arguments) throws Exception {
+        Class<?>[] parameterTypes =
+                new Class<?>[arguments == null ? 0 : arguments.length];
+
+        if (arguments != null) {
+            for (int i = 0; i < arguments.length; i++) {
+                parameterTypes[i] =
+                        arguments[i] == null
+                                ? Object.class
+                                : arguments[i].getClass();
+            }
+        }
+
+        var method =
+                mainClass.getDeclaredMethod(
+                        methodName,
+                        parameterTypes
+                );
+
+        if (!java.lang.reflect.Modifier.isStatic(
+                method.getModifiers()
+        )) {
+            throw new IllegalStateException(
+                    methodName +
+                            "() must be static."
+            );
+        }
+
+        method.setAccessible(true);
+
+        return method.invoke(
+                null,
+                arguments == null
+                        ? new Object[0]
+                        : arguments
+        );
+    }
+
     @Override
     public void close() {
         if (classLoader instanceof URLClassLoader urlClassLoader) {
