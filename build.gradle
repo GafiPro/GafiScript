@@ -1,5 +1,5 @@
 plugins {
-    id "fabric-loom" version "1.17.13"
+    id "net.fabricmc.fabric-loom-remap" version "1.17.13"
 }
 
 group = project.maven_group
@@ -25,6 +25,8 @@ dependencies {
 
     implementation("com.github.javaparser:javaparser-core:3.28.2")
     include("com.github.javaparser:javaparser-core:3.28.2")
+
+    testImplementation("org.junit.jupiter:junit-jupiter:5.14.4")
 }
 
 processResources {
@@ -43,6 +45,10 @@ java {
     sourceCompatibility = JavaVersion.VERSION_21
     targetCompatibility = JavaVersion.VERSION_21
     withSourcesJar()
+}
+
+tasks.test {
+    useJUnitPlatform()
 }
 
 jar {
