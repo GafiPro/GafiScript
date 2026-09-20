@@ -165,11 +165,43 @@ class GafiScriptAuditTest {
         assertFalse(sources.isEmpty(), "No GafiScript examples found.");
 
         JavaCompiler compiler = requireCompiler();
-        Path output = Files.createTempDirectory("gafiscript-examples-test-");
+        Path output =
+                Files.createTempDirectory(
+                        "gafiscript-examples-test-"
+                );
 
         try {
             DiagnosticCollector<JavaFileObject> diagnostics =
                     new DiagnosticCollector<>();
+
+            List<JavaFileObject> units =
+                    new java.util.ArrayList<>();
+
+            for (Path sourcePath : sources) {
+                String source =
+                        Files.readString(
+                                sourcePath,
+                                StandardCharsets.UTF_8
+                        );
+
+                String className =
+                        findPrimaryTypeName(
+                                source,
+                                sourcePath.getFileName()
+                                        .toString()
+                                        .replaceFirst(
+                                                "\\.java$",
+                                                ""
+                                        )
+                        );
+
+                units.add(
+                        new SourceObject(
+                                className,
+                                source
+                        )
+                );
+            }
 
             try (StandardJavaFileManager fileManager =
                          compiler.getStandardFileManager(
@@ -183,11 +215,11 @@ class GafiScriptAuditTest {
                         List.of(output.toFile())
                 );
 
-                Iterable<? extends JavaFileObject> units =
-                        fileManager.getJavaFileObjectsFromPaths(sources);
-
                 String classPath =
-                        System.getProperty("java.class.path", "");
+                        System.getProperty(
+                                "java.class.path",
+                                ""
+                        );
 
                 JavaCompiler.CompilationTask task =
                         compiler.getTask(
@@ -213,6 +245,34 @@ class GafiScriptAuditTest {
         } finally {
             deleteTree(output);
         }
+    }
+
+    private static String findPrimaryTypeName(
+            String source,
+            String fallback
+    ) {
+        var matcher =
+                java.util.regex.Pattern
+                        .compile(
+                                "\\bpublic\\s+(?:final\\s+|abstract\\s+)?" +
+                                "(?:class|interface|enum|record)\\s+" +
+                                "([A-Za-z_$][A-Za-z0-9_$]*)"
+                        )
+                        .matcher(source);
+
+        if (!matcher.find()) {
+            matcher =
+                    java.util.regex.Pattern
+                            .compile(
+                                    "\\b(?:class|interface|enum|record)\\s+" +
+                                    "([A-Za-z_$][A-Za-z0-9_$]*)"
+                            )
+                            .matcher(source);
+        }
+
+        return matcher.find()
+                ? matcher.group(1)
+                : fallback;
     }
 
     private static JavaCompiler requireCompiler() {
