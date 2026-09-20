@@ -149,6 +149,99 @@ public final class GafiEvents {
                 }
         );
 
+        UseItemCallback.EVENT.register((player, world, hand) -> {
+            if (world.isClient() || !(player instanceof ServerPlayerEntity serverPlayer)) {
+                return ActionResult.PASS;
+            }
+
+            GafiItemUseEvent event = new GafiItemUseEvent(
+                    new GafiPlayer(serverPlayer),
+                    world.getStackInHand(hand).copy()
+            );
+
+            INSTANCE.itemUseListeners.forEach(listener ->
+                    INSTANCE.safe(listener.ownerScript(), () -> listener.consumer().accept(event))
+            );
+
+            return event.isCancelled() ? ActionResult.FAIL : ActionResult.PASS;
+        });
+
+        UseEntityCallback.EVENT.register((player, world, hand, entity, hitResult) -> {
+            if (world.isClient() || !(player instanceof ServerPlayerEntity serverPlayer)) {
+                return ActionResult.PASS;
+            }
+
+            GafiEntityUseEvent event = new GafiEntityUseEvent(
+                    new GafiPlayer(serverPlayer),
+                    new GafiEntity(entity)
+            );
+
+            INSTANCE.entityUseListeners.forEach(listener ->
+                    INSTANCE.safe(listener.ownerScript(), () -> listener.consumer().accept(event))
+            );
+
+            return event.isCancelled() ? ActionResult.FAIL : ActionResult.PASS;
+        });
+
+        ServerEntityEvents.ENTITY_LOAD.register((entity, world) ->
+                INSTANCE.entityLoadListeners.forEach(listener ->
+                        INSTANCE.safe(
+                                listener.ownerScript(),
+                                () -> listener.consumer().accept(
+                                        new GafiEntityLifecycleEvent(new GafiEntity(entity), false)
+                                )
+                        )
+                )
+        );
+
+        ServerEntityEvents.ENTITY_UNLOAD.register((entity, world) ->
+                INSTANCE.entityUnloadListeners.forEach(listener ->
+                        INSTANCE.safe(
+                                listener.ownerScript(),
+                                () -> listener.consumer().accept(
+                                        new GafiEntityLifecycleEvent(new GafiEntity(entity), true)
+                                )
+                        )
+                )
+        );
+
+        ServerLivingEntityEvents.ALLOW_DAMAGE.register((entity, source, amount) -> {
+            GafiDamageEvent event = new GafiDamageEvent(
+                    new GafiEntity(entity),
+                    String.valueOf(source),
+                    amount
+            );
+
+            INSTANCE.damageListeners.forEach(listener ->
+                    INSTANCE.safe(listener.ownerScript(), () -> listener.consumer().accept(event))
+            );
+
+            return !event.isCancelled();
+        });
+
+        ServerLivingEntityEvents.AFTER_DEATH.register((entity, source) -> {
+            GafiEntityDeathEvent event = new GafiEntityDeathEvent(
+                    new GafiEntity(entity),
+                    String.valueOf(source)
+            );
+
+            INSTANCE.entityDeathListeners.forEach(listener ->
+                    INSTANCE.safe(listener.ownerScript(), () -> listener.consumer().accept(event))
+            );
+        });
+
+        ServerMessageEvents.CHAT_MESSAGE.register((message, sender, boundChatType) -> {
+            GafiChatEvent event = new GafiChatEvent(
+                    new GafiPlayer(sender),
+                    extractChatText(message),
+                    message
+            );
+
+            INSTANCE.chatListeners.forEach(listener ->
+                    INSTANCE.safe(listener.ownerScript(), () -> listener.consumer().accept(event))
+            );
+        });
+
         ServerTickEvents.END_SERVER_TICK.register(
                 server ->
                         INSTANCE.tickListeners.forEach(
@@ -194,6 +287,34 @@ public final class GafiEvents {
         return add(useListeners, listener);
     }
 
+    public GafiEventHandle onItemUse(Consumer<GafiItemUseEvent> listener) {
+        return add(itemUseListeners, listener);
+    }
+
+    public GafiEventHandle onInteractEntity(Consumer<GafiEntityUseEvent> listener) {
+        return add(entityUseListeners, listener);
+    }
+
+    public GafiEventHandle onEntityLoad(Consumer<GafiEntityLifecycleEvent> listener) {
+        return add(entityLoadListeners, listener);
+    }
+
+    public GafiEventHandle onEntityUnload(Consumer<GafiEntityLifecycleEvent> listener) {
+        return add(entityUnloadListeners, listener);
+    }
+
+    public GafiEventHandle onDamage(Consumer<GafiDamageEvent> listener) {
+        return add(damageListeners, listener);
+    }
+
+    public GafiEventHandle onEntityDeath(Consumer<GafiEntityDeathEvent> listener) {
+        return add(entityDeathListeners, listener);
+    }
+
+    public GafiEventHandle onChat(Consumer<GafiChatEvent> listener) {
+        return add(chatListeners, listener);
+    }
+
     public GafiEventHandle onTick(
             Consumer<GafiServerTickEvent> listener
     ) {
@@ -206,6 +327,13 @@ public final class GafiEvents {
         unregisterOwnedBy(deathListeners, scriptName);
         unregisterOwnedBy(breakListeners, scriptName);
         unregisterOwnedBy(useListeners, scriptName);
+        unregisterOwnedBy(itemUseListeners, scriptName);
+        unregisterOwnedBy(entityUseListeners, scriptName);
+        unregisterOwnedBy(entityLoadListeners, scriptName);
+        unregisterOwnedBy(entityUnloadListeners, scriptName);
+        unregisterOwnedBy(damageListeners, scriptName);
+        unregisterOwnedBy(entityDeathListeners, scriptName);
+        unregisterOwnedBy(chatListeners, scriptName);
         unregisterOwnedBy(tickListeners, scriptName);
     }
 
@@ -357,6 +485,126 @@ public final class GafiEvents {
         public void cancel() {
             cancelled = true;
         }
+    }
+
+    public static final class GafiItemUseEvent {
+        private final GafiPlayer player;
+        private final net.minecraft.item.ItemStack item;
+        private boolean cancelled;
+
+        public GafiItemUseEvent(GafiPlayer player, net.minecraft.item.ItemStack item) {
+            this.player = player;
+            this.item = item;
+        }
+
+        public GafiPlayer player() { return player; }
+        public String itemId() {
+            return net.minecraft.registry.Registries.ITEM.getId(item.getItem()).toString();
+        }
+        public net.minecraft.item.ItemStack rawItem() { return item.copy(); }
+        public boolean isCancelled() { return cancelled; }
+        public void cancel() { cancelled = true; }
+    }
+
+    public static final class GafiEntityUseEvent {
+        private final GafiPlayer player;
+        private final GafiEntity entity;
+        private boolean cancelled;
+
+        public GafiEntityUseEvent(GafiPlayer player, GafiEntity entity) {
+            this.player = player;
+            this.entity = entity;
+        }
+
+        public GafiPlayer player() { return player; }
+        public GafiEntity entity() { return entity; }
+        public boolean isCancelled() { return cancelled; }
+        public void cancel() { cancelled = true; }
+    }
+
+    public static final class GafiEntityLifecycleEvent {
+        private final GafiEntity entity;
+        private final boolean unloaded;
+
+        public GafiEntityLifecycleEvent(GafiEntity entity, boolean unloaded) {
+            this.entity = entity;
+            this.unloaded = unloaded;
+        }
+
+        public GafiEntity entity() { return entity; }
+        public boolean unloaded() { return unloaded; }
+    }
+
+    public static final class GafiDamageEvent {
+        private final GafiEntity entity;
+        private final String source;
+        private final float amount;
+        private boolean cancelled;
+
+        public GafiDamageEvent(GafiEntity entity, String source, float amount) {
+            this.entity = entity;
+            this.source = source;
+            this.amount = amount;
+        }
+
+        public GafiEntity entity() { return entity; }
+        public String source() { return source; }
+        public float amount() { return amount; }
+        public boolean isCancelled() { return cancelled; }
+        public void cancel() { cancelled = true; }
+    }
+
+    public static final class GafiEntityDeathEvent {
+        private final GafiEntity entity;
+        private final String source;
+
+        public GafiEntityDeathEvent(GafiEntity entity, String source) {
+            this.entity = entity;
+            this.source = source;
+        }
+
+        public GafiEntity entity() { return entity; }
+        public String source() { return source; }
+    }
+
+    public static final class GafiChatEvent {
+        private final GafiPlayer player;
+        private final String message;
+        private final Object raw;
+
+        public GafiChatEvent(GafiPlayer player, String message, Object raw) {
+            this.player = player;
+            this.message = message;
+            this.raw = raw;
+        }
+
+        public GafiPlayer player() { return player; }
+        public String message() { return message; }
+        public Object raw() { return raw; }
+    }
+
+    private static String extractChatText(Object message) {
+        if (message == null) return "";
+
+        for (String methodName : List.of("signedContent", "getContent", "getSignedContent")) {
+            try {
+                Method method = message.getClass().getMethod(methodName);
+                Object content = method.invoke(message);
+                if (content == null) continue;
+
+                try {
+                    Method getString = content.getClass().getMethod("getString");
+                    Object result = getString.invoke(content);
+                    if (result != null) return String.valueOf(result);
+                } catch (ReflectiveOperationException ignored) {
+                }
+
+                return String.valueOf(content);
+            } catch (ReflectiveOperationException ignored) {
+            }
+        }
+
+        return String.valueOf(message);
     }
 
     public record GafiServerTickEvent() {}
