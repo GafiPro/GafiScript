@@ -86,6 +86,38 @@ public final class GafiPlayer {
         return new GafiInventory(handle.getInventory());
     }
 
+    public GafiRaycastHit raycast(double distance) {
+        double max = Math.max(0.0, Math.min(distance, 256.0));
+        var start = handle.getEyePos();
+        var direction = handle.getRotationVec(1.0F);
+        var end = start.add(
+                direction.x * max,
+                direction.y * max,
+                direction.z * max
+        );
+
+        var context = new net.minecraft.world.RaycastContext(
+                start,
+                end,
+                net.minecraft.world.RaycastContext.ShapeType.OUTLINE,
+                net.minecraft.world.RaycastContext.FluidHandling.NONE,
+                handle
+        );
+
+        var hit = handle.getEntityWorld().raycast(context);
+
+        if (hit == null || hit.getType() != net.minecraft.util.hit.HitResult.Type.BLOCK) {
+            return GafiRaycastHit.miss(
+                    new GafiPosition(end.x, end.y, end.z)
+            );
+        }
+
+        return GafiRaycastHit.from(
+                (net.minecraft.util.hit.BlockHitResult) hit,
+                handle.getEntityWorld()
+        );
+    }
+
     public void teleport(GafiPosition position) {
         Gafi.runSync(() ->
                 handle.requestTeleport(
