@@ -68,7 +68,9 @@ class GafiScriptAuditTest {
 
                 assertTrue(
                         Boolean.TRUE.equals(task.call()),
-                        formatDiagnostics(diagnostics)
+                        formatDiagnostics(diagnostics) +
+                                "\nExamples: " +
+                                sources
                 );
             }
 
