@@ -8,12 +8,20 @@ import java.util.List;
 import java.util.Locale;
 
 public final class ScriptBytecodeValidator {
+    /*
+     * javac emits java/lang/invoke references for ordinary Java lambdas
+     * (invokedynamic + LambdaMetafactory). These references are compiler
+     * implementation details, not by themselves a permission to call the
+     * invoke API directly.
+     *
+     * Direct use of java.lang.invoke remains blocked by ScriptSecurity,
+     * including MethodHandles/Unsafe-style escape hatches.
+     */
     private static final List<String> BLOCKED_TOKENS = List.of(
             "java/io/",
             "java/net/",
             "java/nio/file/",
             "java/lang/reflect/",
-            "java/lang/invoke/",
             "java/lang/Runtime",
             "java/lang/ProcessBuilder",
             "java/lang/ClassLoader",
@@ -21,7 +29,6 @@ public final class ScriptBytecodeValidator {
             "jdk/internal/",
             "ProcessBuilder",
             "URLClassLoader",
-            "MethodHandles",
             "Unsafe"
     );
 
