@@ -53,9 +53,34 @@ tasks.test {
     useJUnitPlatform()
 
     doFirst {
+        def classpathEntries =
+                new LinkedHashSet<String>()
+
+        [
+                "testRuntimeClasspath",
+                "runtimeClasspath",
+                "compileClasspath",
+                "modRuntimeClasspath",
+                "modCompileClasspath",
+                "minecraft"
+        ].each { configurationName ->
+            def configuration =
+                    configurations.findByName(configurationName)
+
+            if (configuration != null) {
+                configuration.files.each { file ->
+                    classpathEntries.add(
+                            file.absolutePath
+                    )
+                }
+            }
+        }
+
         systemProperty(
                 "gafiscript.test.classpath",
-                configurations.testRuntimeClasspath.asPath
+                classpathEntries.join(
+                        File.pathSeparator
+                )
         )
     }
 }
