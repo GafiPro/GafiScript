@@ -61,6 +61,8 @@ public final class GafiTask {
     }
 
     private void runAction() {
+        long started = System.nanoTime();
+
         try {
             action.run();
         } catch (Throwable throwable) {
@@ -68,6 +70,26 @@ public final class GafiTask {
                     "GafiScript scheduled task failed",
                     throwable
             );
+        } finally {
+            if (ownerScript != null) {
+                GafiScriptApiWatchdog.observe(
+                        ownerScript,
+                        System.nanoTime() - started
+                );
+            }
+        }
+    }
+
+    private static final class GafiScriptApiWatchdog {
+        private static void observe(
+                String owner,
+                long nanos
+        ) {
+            try {
+                com.gafipro.gafiscript.api.Gafi.watchdog()
+                        .observe(owner, nanos);
+            } catch (Throwable ignored) {
+            }
         }
     }
 }
