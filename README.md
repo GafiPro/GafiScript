@@ -147,3 +147,26 @@ gradle clean build --no-daemon --max-workers=1
 ~~~
 
 O JAR final aparece em build/libs/.
+
+### Efeitos do shader — autocomplete completo
+
+Existe agora uma árvore genérica:
+
+- /gafishader effect
+
+Ao abrir o argumento seguinte no autocomplete, aparecem as opções de configuração do Complementary Reimagined catalogadas a partir do shaders.properties atual, incluindo atmosfera, Aurora, nebulosas, arco-íris, nuvens, fog, light shafts, água, PBR, materiais emissivos, iluminação, câmera, tonemapping, TAA/FXAA, Nether, End, outlines e restantes definições expostas pelo menu do pack.
+
+Exemplos:
+
+- /gafishader effect AURORA_STYLE_DEFINE 1
+- /gafishader effect AURORA_CONDITION 2
+- /gafishader effect NIGHT_NEBULAE on
+- /gafishader effect RAINBOWS on
+- /gafishader effect BLOOM_ENABLED on
+- /gafishader effect TM_EXPOSURE 0.5
+- /gafishader effect CLOUD_SPEED_MULT 2
+- /gafishader effect WATER_REFRACTION_INTENSITY 1
+
+Também há autocomplete genérico de valores (on, off, true, false, números comuns, reimagined, unbound, after_rain, fullmoon, etc.); valores específicos não incluídos nesse pequeno conjunto podem continuar a ser escritos manualmente.
+
+O comando usa o mecanismo de opções do Iris para colocar a alteração em fila e reaplicar o shader, em vez de editar o conteúdo do shader pack. A documentação do Iris confirma que as opções do shader pack são definidas através de shaders.properties e que as opções do menu correspondem às opções reconhecidas pelo próprio Iris.
