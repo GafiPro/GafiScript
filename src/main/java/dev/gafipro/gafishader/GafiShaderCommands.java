@@ -383,8 +383,8 @@ public final class GafiShaderCommands {
     }
 
     private static int resetAll(CommandContext<FabricClientCommandSource> ctx) {
-        GafiShaderController.reset();
-        ctx.getSource().sendFeedback(Text.literal("Todos os overrides client-side foram libertados."));
+        GafiShaderController.clearAll();
+        ctx.getSource().sendFeedback(Text.literal("Todos os overrides client-side foram libertados e o estado anterior foi restaurado."));
         return 1;
     }
 
