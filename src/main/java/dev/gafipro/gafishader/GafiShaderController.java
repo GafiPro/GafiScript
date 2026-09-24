@@ -39,6 +39,18 @@ public final class GafiShaderController {
         weatherOverride = new WeatherOverride(rain, thunder, durationTicks);
         applyImmediately();
     }
+
+    public static void freezeWeather(long durationTicks) {
+        MinecraftClient client = MinecraftClient.getInstance();
+        if (client.world == null) throw new IllegalStateException("Não estás num mundo.");
+        weatherOverride = new WeatherOverride(
+                client.world.getRainGradient(1.0f),
+                client.world.getThunderGradient(1.0f),
+                durationTicks
+        );
+        applyImmediately();
+    }
+
     public static void clearWeather() { weatherOverride = null; }
 
     public static String timeStatus() { return timeOverride == null ? "normal" : timeOverride.describe(); }
