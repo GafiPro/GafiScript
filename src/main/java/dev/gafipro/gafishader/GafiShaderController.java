@@ -10,19 +10,28 @@ public final class GafiShaderController {
     public static void reset() { timeOverride = null; weatherOverride = null; }
 
     public static void tick(ClientWorld world) {
-        if (timeOverride != null && timeOverride.tick(world)) timeOverride = null;
-        if (weatherOverride != null && weatherOverride.tick(world)) weatherOverride = null;
+        if (timeOverride != null && timeOverride.tick(world)) {
+            timeOverride.restore(world);
+            timeOverride = null;
+        }
+        if (weatherOverride != null && weatherOverride.tick(world)) {
+            weatherOverride.restore(world);
+            weatherOverride = null;
+        }
     }
 
     public static void setFixedTime(long timeOfDay, long durationTicks) {
-        timeOverride = TimeOverride.fixed(timeOfDay, durationTicks);
+        MinecraftClient client = MinecraftClient.getInstance();
+        if (client.world == null) throw new IllegalStateException("Não estás num mundo.");
+        timeOverride = TimeOverride.fixed(client.world.getTimeOfDay(), timeOfDay, durationTicks);
         applyImmediately();
     }
 
     public static void freezeTime(long durationTicks) {
         MinecraftClient client = MinecraftClient.getInstance();
         if (client.world == null) throw new IllegalStateException("Não estás num mundo.");
-        timeOverride = TimeOverride.fixed(client.world.getTimeOfDay(), durationTicks);
+        long current = client.world.getTimeOfDay();
+        timeOverride = TimeOverride.fixed(current, current, durationTicks);
         applyImmediately();
     }
 
@@ -30,28 +39,43 @@ public final class GafiShaderController {
         if (multiplier < 0) throw new IllegalArgumentException("A velocidade do tempo não pode ser negativa.");
         MinecraftClient client = MinecraftClient.getInstance();
         if (client.world == null) throw new IllegalStateException("Não estás num mundo.");
-        timeOverride = TimeOverride.speed(client.world.getTimeOfDay(), multiplier, durationTicks);
+        long current = client.world.getTimeOfDay();
+        timeOverride = TimeOverride.speed(current, current, multiplier, durationTicks);
         applyImmediately();
     }
 
-    public static void clearTime() { timeOverride = null; }
+    public static void clearTime() {
+        MinecraftClient client = MinecraftClient.getInstance();
+        if (timeOverride != null && client.world != null) timeOverride.restore(client.world);
+        timeOverride = null;
+    }
     public static void setWeather(float rain, float thunder, long durationTicks) {
-        weatherOverride = new WeatherOverride(rain, thunder, durationTicks);
+        MinecraftClient client = MinecraftClient.getInstance();
+        if (client.world == null) throw new IllegalStateException("Não estás num mundo.");
+        weatherOverride = new WeatherOverride(
+                client.world.getRainGradient(1.0f),
+                client.world.getThunderGradient(1.0f),
+                rain,
+                thunder,
+                durationTicks
+        );
         applyImmediately();
     }
 
     public static void freezeWeather(long durationTicks) {
         MinecraftClient client = MinecraftClient.getInstance();
         if (client.world == null) throw new IllegalStateException("Não estás num mundo.");
-        weatherOverride = new WeatherOverride(
-                client.world.getRainGradient(1.0f),
-                client.world.getThunderGradient(1.0f),
-                durationTicks
-        );
+        float rain = client.world.getRainGradient(1.0f);
+        float thunder = client.world.getThunderGradient(1.0f);
+        weatherOverride = new WeatherOverride(rain, thunder, rain, thunder, durationTicks);
         applyImmediately();
     }
 
-    public static void clearWeather() { weatherOverride = null; }
+    public static void clearWeather() {
+        MinecraftClient client = MinecraftClient.getInstance();
+        if (weatherOverride != null && client.world != null) weatherOverride.restore(client.world);
+        weatherOverride = null;
+    }
 
     public static String timeStatus() { return timeOverride == null ? "normal" : timeOverride.describe(); }
     public static String weatherStatus() { return weatherOverride == null ? "normal" : weatherOverride.describe(); }
@@ -93,17 +117,24 @@ public final class GafiShaderController {
         private final Mode mode;
         private final long duration;
         private long remaining;
+        private final long restoreTime;
         private final long fixedTime;
         private final double speed;
         private double simulationTime;
 
-        private TimeOverride(Mode mode, long duration, long fixedTime, double speed) {
+        private TimeOverride(Mode mode, long duration, long restoreTime, long fixedTime, double speed) {
             this.mode = mode; this.duration = duration; this.remaining = duration;
-            this.fixedTime = fixedTime; this.speed = speed; this.simulationTime = fixedTime;
+            this.restoreTime = restoreTime; this.fixedTime = fixedTime; this.speed = speed;
+            this.simulationTime = fixedTime;
         }
 
-        static TimeOverride fixed(long time, long duration) { return new TimeOverride(Mode.FIXED, duration, time, 0); }
-        static TimeOverride speed(long start, double speed, long duration) { return new TimeOverride(Mode.SPEED, duration, start, speed); }
+        static TimeOverride fixed(long restoreTime, long time, long duration) {
+            return new TimeOverride(Mode.FIXED, duration, restoreTime, time, 0);
+        }
+
+        static TimeOverride speed(long restoreTime, long start, double speed, long duration) {
+            return new TimeOverride(Mode.SPEED, duration, restoreTime, start, speed);
+        }
 
         boolean tick(ClientWorld world) {
             apply(world);
@@ -119,6 +150,10 @@ public final class GafiShaderController {
             }
         }
 
+        void restore(ClientWorld world) {
+            world.setTimeOfDay(restoreTime);
+        }
+
         String describe() {
             return mode == Mode.FIXED
                     ? "fixed=" + Math.floorMod(fixedTime, 24000L) + " for " + DurationParser.describe(duration)
@@ -129,14 +164,24 @@ public final class GafiShaderController {
     private enum Mode { FIXED, SPEED }
 
     private static final class WeatherOverride {
+        private final float restoreRain;
+        private final float restoreThunder;
         private final float rain;
         private final float thunder;
         private final long duration;
         private long remaining;
 
         private WeatherOverride(float rain, float thunder, long duration) {
-            this.rain = clamp01(rain); this.thunder = clamp01(thunder);
-            this.duration = duration; this.remaining = duration;
+            this(0.0f, 0.0f, rain, thunder, duration);
+        }
+
+        private WeatherOverride(float restoreRain, float restoreThunder, float rain, float thunder, long duration) {
+            this.restoreRain = clamp01(restoreRain);
+            this.restoreThunder = clamp01(restoreThunder);
+            this.rain = clamp01(rain);
+            this.thunder = clamp01(thunder);
+            this.duration = duration;
+            this.remaining = duration;
         }
 
         boolean tick(ClientWorld world) {
@@ -148,6 +193,11 @@ public final class GafiShaderController {
         void apply(ClientWorld world) {
             world.setRainGradient(rain);
             world.setThunderGradient(thunder);
+        }
+
+        void restore(ClientWorld world) {
+            world.setRainGradient(restoreRain);
+            world.setThunderGradient(restoreThunder);
         }
 
         String describe() {
