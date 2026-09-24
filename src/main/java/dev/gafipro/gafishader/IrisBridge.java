@@ -4,6 +4,7 @@ import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.gui.screen.Screen;
 import java.lang.reflect.Method;
 import java.util.Optional;
+import java.util.Properties;
 
 public final class IrisBridge {
     private static final String API_CLASS = "net.irisshaders.iris.api.v0.IrisApi";
@@ -62,6 +63,41 @@ public final class IrisBridge {
         Optional<Boolean> enabled = shadersEnabled();
         if (enabled.isEmpty()) throw new IllegalStateException("Não foi possível ler o estado dos shaders.");
         setShadersEnabled(enabled.get());
+    }
+
+    /**
+     * Applies an Iris/OptiFine-compatible shader-pack option through Iris' own
+     * option queue. This is intentionally reflective so GafiShader remains
+     * optional with respect to Iris and does not hard-link against Iris internals.
+     */
+    public static void setShaderPackOption(String option, String value) {
+        requireIris();
+        if (option == null || option.isBlank()) throw new IllegalArgumentException("Opção vazia.");
+        if (value == null || value.isBlank()) throw new IllegalArgumentException("Valor vazio.");
+
+        try {
+            Class<?> irisClass = Class.forName("net.irisshaders.iris.Iris");
+            Method queue = irisClass.getMethod("queueShaderPackOptionsFromProperties", Properties.class);
+            Properties properties = new Properties();
+            properties.setProperty(option, normalizeOptionValue(value));
+            queue.invoke(null, properties);
+
+            Optional<Boolean> enabled = shadersEnabled();
+            if (enabled.isEmpty()) throw new IllegalStateException("O Iris não devolveu o estado atual dos shaders.");
+            setShadersEnabled(enabled.get());
+        } catch (ReflectiveOperationException | LinkageError e) {
+            throw new IllegalStateException(
+                    "Esta versão do Iris não expõe o mecanismo interno necessário para alterar opções do shader: "
+                            + e.getClass().getSimpleName(), e);
+        }
+    }
+
+    private static String normalizeOptionValue(String value) {
+        return switch (value.trim().toLowerCase(java.util.Locale.ROOT)) {
+            case "on", "true" -> "true";
+            case "off", "false" -> "false";
+            default -> value.trim();
+        };
     }
 
     private static Object getApi() throws ReflectiveOperationException {
