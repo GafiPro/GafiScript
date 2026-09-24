@@ -7,6 +7,8 @@ import com.mojang.brigadier.arguments.StringArgumentType;
 import com.mojang.brigadier.context.CommandContext;
 import com.mojang.brigadier.builder.LiteralArgumentBuilder;
 import com.mojang.brigadier.builder.ArgumentBuilder;
+import com.mojang.brigadier.suggestion.Suggestions;
+import com.mojang.brigadier.suggestion.SuggestionsBuilder;
 import net.fabricmc.fabric.api.client.command.v2.ClientCommandManager;
 import net.fabricmc.fabric.api.client.command.v2.ClientCommandRegistrationCallback;
 import net.fabricmc.fabric.api.client.command.v2.FabricClientCommandSource;
@@ -14,6 +16,7 @@ import net.minecraft.command.CommandSource;
 import net.minecraft.text.Text;
 
 import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
 
 import static net.fabricmc.fabric.api.client.command.v2.ClientCommandManager.argument;
 import static net.fabricmc.fabric.api.client.command.v2.ClientCommandManager.literal;
@@ -475,7 +478,7 @@ public final class GafiShaderCommands {
         return hasDuration ? DurationParser.parseTicks(StringArgumentType.getString(ctx, "duration")) : DurationParser.FOREVER;
     }
 
-    private static int durationSuggestions(CommandContext<FabricClientCommandSource> ctx, com.mojang.brigadier.suggestion.SuggestionsBuilder builder) {
+    private static CompletableFuture<Suggestions> durationSuggestions(CommandContext<FabricClientCommandSource> ctx, SuggestionsBuilder builder) {
         return CommandSource.suggestMatching(new String[]{
                 "30s", "1m", "5m", "10m", "30m", "1h", "1d", "200t", "1h30m", "forever"
         }, builder);
