@@ -9,6 +9,11 @@ public final class GafiShaderController {
 
     public static void reset() { timeOverride = null; weatherOverride = null; }
 
+    public static void clearAll() {
+        clearTime();
+        clearWeather();
+    }
+
     public static void tick(ClientWorld world) {
         if (timeOverride != null && timeOverride.tick(world)) {
             timeOverride.restore(world);
