@@ -44,6 +44,7 @@ public final class GafiShaderCommands {
                 .then(literal("settings").executes(GafiShaderCommands::settings))
                 .then(literal("gui").executes(GafiShaderCommands::settings))
                 .then(literal("reload").executes(GafiShaderCommands::reload))
+                .then(effectCommands())
 
                 .then(fixedTime("day", 1000))
                 .then(fixedTime("alwaysday", 1000))
@@ -82,6 +83,46 @@ public final class GafiShaderCommands {
                 .then(timeCommands())
                 .then(weatherCommands())
                 .then(presetCommands());
+    }
+
+    private static LiteralArgumentBuilder<FabricClientCommandSource> effectCommands() {
+        return literal("effect")
+                .executes(ctx -> {
+                    ctx.getSource().sendFeedback(Text.literal(ComplementaryCatalog.helpText()));
+                    return 1;
+                })
+                .then(argument("option", StringArgumentType.word())
+                        .suggests((ctx, builder) -> ComplementaryCatalog.optionSuggestions(builder))
+                        .executes(ctx -> {
+                            String option = StringArgumentType.getString(ctx, "option");
+                            ctx.getSource().sendFeedback(Text.literal(
+                                    "Shader effect " + option + ": indica um valor. Exemplos: on/off, 0, 1, 2, 3, reimagined, unbound."
+                            ));
+                            return 1;
+                        })
+                        .then(argument("value", StringArgumentType.word())
+                                .suggests((ctx, builder) -> ComplementaryCatalog.genericValueSuggestions(builder))
+                                .executes(GafiShaderCommands::effectSet)));
+    }
+
+    private static int effectSet(CommandContext<FabricClientCommandSource> ctx) {
+        String option = StringArgumentType.getString(ctx, "option");
+        String value = StringArgumentType.getString(ctx, "value");
+
+        if (!ComplementaryCatalog.optionNames().contains(option)) {
+            return fail(ctx, new IllegalArgumentException(
+                    "Opção desconhecida no catálogo atual do Complementary Reimagined: " + option));
+        }
+
+        try {
+            IrisBridge.setShaderPackOption(option, value);
+            ctx.getSource().sendFeedback(Text.literal(
+                    "Shader effect aplicado: " + option + "=" + value + "."
+            ));
+            return 1;
+        } catch (Exception e) {
+            return fail(ctx, e);
+        }
     }
 
     private static LiteralArgumentBuilder<FabricClientCommandSource> timeCommands() {
